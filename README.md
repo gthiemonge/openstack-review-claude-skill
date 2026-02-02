@@ -52,6 +52,19 @@ This will:
 You can also use the helper script directly:
 
 ```bash
+# Set SKILL_DIR based on where the skill is installed
+SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
+
+# Fetch the review
+${SKILL_DIR}/fetch_review.sh 970404
+```
+
+Or use the direct path for your installation:
+```bash
+# Global install (default):
+~/.claude/skills/openstack-review/fetch_review.sh 970404
+
+# Project-specific install:
 ./.claude/skills/openstack-review/fetch_review.sh 970404
 ```
 

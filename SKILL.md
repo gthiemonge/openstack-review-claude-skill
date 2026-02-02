@@ -17,6 +17,20 @@ If not already checked out, fetch the review using the helper script:
 
 ```bash
 # Use the helper script which reads project info from .gitreview
+# Set SKILL_DIR based on where the skill is installed:
+# - Project-specific: SKILL_DIR="./.claude/skills/openstack-review"
+# - Global install: SKILL_DIR="$HOME/.claude/skills/openstack-review"
+SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
+
+${SKILL_DIR}/fetch_review.sh $ARGUMENTS
+```
+
+Or use absolute path if you know the install location:
+```bash
+# If installed globally (most common)
+~/.claude/skills/openstack-review/fetch_review.sh $ARGUMENTS
+
+# If installed in project
 ./.claude/skills/openstack-review/fetch_review.sh $ARGUMENTS
 ```
 
@@ -43,52 +57,31 @@ git checkout FETCH_HEAD
 
 Before analyzing the code, check what feedback other reviewers have already given:
 
-1. **Fetch review metadata and comments:**
+1. **Fetch review metadata and comments using the analyze_comments.py helper:**
    ```bash
-   # Extract project info
+   # Set SKILL_DIR based on where the skill is installed
+   SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
+
+   # Extract project info from .gitreview
    PROJECT=$(grep "^project=" .gitreview | cut -d= -f2 | sed 's/\.git$//')
    GERRIT_HOST=$(grep "^host=" .gitreview | cut -d= -f2)
    PROJECT_ENCODED=$(echo "$PROJECT" | sed 's/\//%2F/g')
    REVIEW_NUM=$ARGUMENTS
 
-   # Get all review data including comments
+   # Fetch all review data including comments
    curl -s "https://${GERRIT_HOST}/changes/${PROJECT_ENCODED}~${REVIEW_NUM}/detail?o=ALL_REVISIONS&o=ALL_COMMITS&o=ALL_FILES&o=MESSAGES&o=DETAILED_LABELS&o=DETAILED_ACCOUNTS" | tail -n +2 > /tmp/review_${REVIEW_NUM}.json
 
-   # Parse and display key information
-   python3 << 'EOF'
-   import json
-   import sys
-
-   with open('/tmp/review_${REVIEW_NUM}.json') as f:
-       review = json.load(f)
-
-   print("=" * 80)
-   print(f"Review #{review['_number']}: {review['subject']}")
-   print(f"Author: {review['owner']['name']} <{review['owner']['email']}>")
-   print(f"Status: {review['status']}")
-   print(f"Current revision: {review['current_revision_number']}")
-   print("=" * 80)
-
-   # Show review messages (comments from reviewers)
-   if 'messages' in review:
-       print("\n### REVIEW COMMENTS FROM PREVIOUS PATCHSETS ###\n")
-       for msg in review['messages']:
-           print(f"Patchset {msg.get('_revision_number', 'N/A')} - {msg['author'].get('name', 'Unknown')} ({msg['date']}):")
-           print(f"  {msg['message']}")
-           print()
-
-   # Show current scores
-   if 'labels' in review:
-       print("\n### CURRENT SCORES ###")
-       for label, data in review['labels'].items():
-           if 'all' in data:
-               print(f"\n{label}:")
-               for vote in data['all']:
-                   value = vote.get('value', 0)
-                   if value != 0:
-                       print(f"  {vote['name']}: {value:+d}")
-   EOF
+   # IMPORTANT: The analyze_comments.py script expects a file path as argument
+   # Use the analyze_comments.py helper to parse and display review history
+   python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_${REVIEW_NUM}.json
    ```
+
+   **Note:** The helper script will show:
+   - Review metadata (subject, author, status, current patchset)
+   - Patchset-by-patchset history of comments
+   - Current review scores (Verified, Code-Review, Workflow)
+   - Identification of potential issues (e.g., -1 votes)
+   - Reviewers involved in the discussion
 
 2. **Fetch inline comments on specific files:**
    ```bash
@@ -220,7 +213,11 @@ Execute the following tox environments:
 
 3. **Affected Tests:** If you can identify specific affected tests, run them:
    ```bash
-   tox -e py3 <project>.tests.unit.path.to.test_module
+   # CORRECT SYNTAX: Use -- to separate tox args from test args
+   tox -e py3 -- <project>.tests.unit.path.to.test_module
+
+   # Example for Octavia:
+   tox -e py3 -- octavia.tests.unit.api.common.test_types
    ```
 
 4. **Coverage Check:**
@@ -312,3 +309,87 @@ The review should produce a detailed markdown report saved as `REVIEW_${REVIEW_N
 - Track review progress
 - Share with other reviewers
 - Document review decisions
+
+---
+
+## Common Mistakes to Avoid
+
+### ❌ Skill Path Issues
+```bash
+# WRONG - hardcoded path may not exist
+python3 /some/fixed/path/analyze_comments.py /tmp/review_970404.json
+
+# CORRECT - use SKILL_DIR variable for flexibility
+SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
+python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_970404.json
+
+# OR use the appropriate path for your installation:
+# Global install (most common):
+python3 ~/.claude/skills/openstack-review/analyze_comments.py /tmp/review_970404.json
+
+# Project-specific install:
+python3 ./.claude/skills/openstack-review/analyze_comments.py /tmp/review_970404.json
+```
+
+### ❌ Wrong Filename for Comment Analysis Script
+```bash
+# WRONG - this file doesn't exist
+python3 ${SKILL_DIR}/get_review_comments.py 970404
+
+# CORRECT - the actual file is analyze_comments.py
+SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
+python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_970404.json
+```
+
+### ❌ Missing Review Data File for analyze_comments.py
+```bash
+# WRONG - script expects the data file as first argument, not review number
+python3 ${SKILL_DIR}/analyze_comments.py 970404
+
+# CORRECT - first fetch the data, then pass the file path
+curl -s "https://review.opendev.org/changes/openstack%2Foctavia~970404/detail?o=ALL_REVISIONS&o=ALL_COMMITS&o=ALL_FILES&o=MESSAGES&o=DETAILED_LABELS&o=DETAILED_ACCOUNTS" | tail -n +2 > /tmp/review_970404.json
+python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_970404.json
+```
+
+### ❌ Incorrect tox Test Syntax
+```bash
+# WRONG - tox will error with "unrecognized arguments"
+tox -e py3 octavia.tests.unit.api.common.test_types
+
+# CORRECT - use -- to separate tox args from test args
+tox -e py3 -- octavia.tests.unit.api.common.test_types
+```
+
+---
+
+## Quick Reference: Correct Usage Pattern
+
+```bash
+# 0. Set skill directory (adjust based on your installation)
+# Default to global install, override if needed
+SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
+# For project-specific install, use: SKILL_DIR="./.claude/skills/openstack-review"
+
+# 1. Fetch the review
+${SKILL_DIR}/fetch_review.sh 970404
+
+# 2. Get review comments analysis
+PROJECT=$(grep "^project=" .gitreview | cut -d= -f2 | sed 's/\.git$//')
+GERRIT_HOST=$(grep "^host=" .gitreview | cut -d= -f2)
+PROJECT_ENCODED=$(echo "$PROJECT" | sed 's/\//%2F/g')
+REVIEW_NUM=970404
+
+curl -s "https://${GERRIT_HOST}/changes/${PROJECT_ENCODED}~${REVIEW_NUM}/detail?o=ALL_REVISIONS&o=ALL_COMMITS&o=ALL_FILES&o=MESSAGES&o=DETAILED_LABELS&o=DETAILED_ACCOUNTS" | tail -n +2 > /tmp/review_${REVIEW_NUM}.json
+python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_${REVIEW_NUM}.json
+
+# 3. Review the code
+git show --stat
+git show HEAD
+
+# 4. Run automated checks
+tox -e pep8
+tox -e py3 -- <affected.test.module>
+
+# 5. Generate review report
+# Create REVIEW_${REVIEW_NUM}.md with findings
+```
