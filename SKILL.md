@@ -9,456 +9,181 @@ allowed-tools: Bash, Read, Grep, Glob, WebFetch, Write
 
 Review OpenStack Gerrit change $ARGUMENTS for code quality, compliance with OpenStack standards, and correctness.
 
+All helper scripts are in the skill directory. Set it once:
+```bash
+SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
+```
+
 ## Review Process
 
 ### 1. Fetch the Change
 
-If not already checked out, fetch the review using the helper script:
-
 ```bash
-# Use the helper script which reads project info from .gitreview
-# Set SKILL_DIR based on where the skill is installed:
-# - Project-specific: SKILL_DIR="./.claude/skills/openstack-review"
-# - Global install: SKILL_DIR="$HOME/.claude/skills/openstack-review"
-SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
-
-${SKILL_DIR}/fetch_review.sh $ARGUMENTS
-```
-
-Or use absolute path if you know the install location:
-```bash
-# If installed globally (most common)
-~/.claude/skills/openstack-review/fetch_review.sh $ARGUMENTS
-
-# If installed in project
-./.claude/skills/openstack-review/fetch_review.sh $ARGUMENTS
-```
-
-Or manually:
-
-```bash
-# Extract project from .gitreview
-PROJECT=$(grep "^project=" .gitreview | cut -d= -f2 | sed 's/\.git$//')
-GERRIT_HOST=$(grep "^host=" .gitreview | cut -d= -f2)
-PROJECT_ENCODED=$(echo "$PROJECT" | sed 's/\//%2F/g')
-
-REVIEW_NUM=$ARGUMENTS
-LAST_TWO=$(printf "%02d" $((REVIEW_NUM % 100)))
-
-# Get latest patchset
-PATCHSET=$(curl -s "https://${GERRIT_HOST}/changes/${PROJECT_ENCODED}~${REVIEW_NUM}/detail" | tail -n +2 | python3 -c "import sys, json; print(json.load(sys.stdin)['current_revision_number'])")
-
-# Fetch and checkout
-git fetch https://${GERRIT_HOST}/${PROJECT} refs/changes/${LAST_TWO}/${REVIEW_NUM}/${PATCHSET}
-git checkout FETCH_HEAD
+python3 ${SKILL_DIR}/gerrit_review.py fetch $ARGUMENTS
 ```
 
 ### 2. Fetch Previous Review Comments
 
-Before analyzing the code, check what feedback other reviewers have already given:
+```bash
+python3 ${SKILL_DIR}/gerrit_review.py comments $ARGUMENTS
+```
 
-1. **Fetch review metadata and comments using the analyze_comments.py helper:**
-   ```bash
-   # Set SKILL_DIR based on where the skill is installed
-   SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
-
-   # Extract project info from .gitreview
-   PROJECT=$(grep "^project=" .gitreview | cut -d= -f2 | sed 's/\.git$//')
-   GERRIT_HOST=$(grep "^host=" .gitreview | cut -d= -f2)
-   PROJECT_ENCODED=$(echo "$PROJECT" | sed 's/\//%2F/g')
-   REVIEW_NUM=$ARGUMENTS
-
-   # Fetch all review data including comments
-   curl -s "https://${GERRIT_HOST}/changes/${PROJECT_ENCODED}~${REVIEW_NUM}/detail?o=ALL_REVISIONS&o=ALL_COMMITS&o=ALL_FILES&o=MESSAGES&o=DETAILED_LABELS&o=DETAILED_ACCOUNTS" | tail -n +2 > /tmp/review_${REVIEW_NUM}.json
-
-   # IMPORTANT: The analyze_comments.py script expects a file path as argument
-   # Use the analyze_comments.py helper to parse and display review history
-   python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_${REVIEW_NUM}.json
-   ```
-
-   **Note:** The helper script will show:
-   - Review metadata (subject, author, status, current patchset)
-   - Patchset-by-patchset history of comments
-   - Current review scores (Verified, Code-Review, Workflow)
-   - Identification of potential issues (e.g., -1 votes)
-   - Reviewers involved in the discussion
-
-2. **Fetch inline comments on specific files:**
-   ```bash
-   # Get comments for each patchset
-   for ps in $(seq 1 $(curl -s "https://${GERRIT_HOST}/changes/${PROJECT_ENCODED}~${REVIEW_NUM}/detail" | tail -n +2 | python3 -c "import sys, json; print(json.load(sys.stdin)['current_revision_number'])")); do
-       echo "=== Patchset $ps Comments ==="
-       curl -s "https://${GERRIT_HOST}/changes/${PROJECT_ENCODED}~${REVIEW_NUM}/revisions/$ps/comments" | tail -n +2 | python3 -m json.tool 2>/dev/null || echo "No inline comments"
-   done
-   ```
+The script outputs filtered human comments, inline comments, review scores, and flags concerns from previous patchsets. Use this to verify whether prior feedback has been addressed.
 
 ### 3. Analyze the Changes
 
-Run the following analysis:
-
-1. **Get commit details:**
-   ```bash
-   git show --stat
-   git show --format=fuller
-   ```
-
-2. **List modified files:**
-   ```bash
-   git diff --name-only HEAD~1
-   git diff --stat HEAD~1
-   ```
-
-3. **Review the actual changes:**
-   ```bash
-   git show HEAD
-   ```
+```bash
+git show --stat
+git show HEAD
+```
 
 ### 4. Verify Previous Feedback Has Been Addressed
 
-**CRITICAL**: Review all previous comments from other reviewers:
+Using the comments output from step 2:
 
-1. **Check each comment from previous patchsets:**
-   - Read through all review messages
-   - Identify issues marked as needing fixes
-   - Look for -1 votes with specific concerns
-   - Note any unresolved discussions
-
-2. **Verify fixes in current patchset:**
-   - For each issue raised, check if it's been addressed in the current code
-   - Look for changes in files that were previously criticized
-   - Verify test additions if tests were requested
-   - Check documentation updates if docs were requested
-
-3. **Common unaddressed issues to watch for:**
-   - Reviewer asked for tests → Are they added?
-   - Reviewer asked for documentation → Is it updated?
-   - Reviewer pointed out security issue → Is it fixed?
-   - Reviewer suggested refactoring → Was it done?
-   - Reviewer asked questions → Are they answered in code or commit message?
-
-4. **If issues remain unaddressed:**
-   - Note them in your review report
-   - Consider giving -1 with reference to the unaddressed feedback
-   - Ask the author to respond to previous comments
+1. **Check each comment from previous patchsets** — identify issues needing fixes, -1 votes, unresolved discussions
+2. **Verify fixes in current patchset** — check if flagged files were updated, tests added, docs updated
+3. **If issues remain unaddressed** — note them in the review report and consider -1
 
 ### 5. Code Quality Checks
 
-Review the changes for OpenStack-specific requirements:
+Review changes for OpenStack-specific requirements:
 
 #### a. HACKING.rst Compliance
 
-Check the project's HACKING.rst file for project-specific rules. Common OpenStack standards:
+Check the project's HACKING.rst. Common standards:
 
-- **Import Order**: Check that imports follow OpenStack ordering (stdlib, third-party, project)
-- **Logging**:
-  - Use `LOG.warning()` not `LOG.warn()`
-  - Don't translate log messages (no `_()` around logs)
-  - DO translate exception messages
-- **JSON**: Use `oslo_serialization.jsonutils` instead of `json` module
-- **Line Continuation**: No backslashes for line continuation (use parentheses)
-- **Mutable Defaults**: Method default arguments shouldn't be mutable
-- **TaskFlow Reverts**: TaskFlow revert methods must accept `**kwargs` (if project uses TaskFlow)
+- **Import Order**: stdlib, third-party, project
+- **Logging**: `LOG.warning()` not `LOG.warn()`, no `_()` around logs, DO translate exception messages
+- **JSON**: Use `oslo_serialization.jsonutils` instead of `json`
+- **Line Continuation**: Parentheses, not backslashes
+- **Mutable Defaults**: No mutable default arguments
+- **TaskFlow Reverts**: Must accept `**kwargs`
 
 #### b. Test Coverage
 
-- **Unit Tests Required**: All new features must have unit tests
-- **Bug Fix Tests**: Bug fixes must include a test that fails without the fix
-- **Test Structure**: Test tree must mirror code structure
-  - Code: `<project>/common/utils.py` → Test: `<project>/tests/unit/common/test_utils.py`
-- Run structure validator if available: `./tools/check_unit_test_structure.sh`
-- Check project's test requirements (often ≥92% coverage for Octavia, may vary by project)
+- All new features must have unit tests
+- Bug fixes must include a test that fails without the fix
+- Test tree must mirror code structure: `<project>/common/utils.py` → `<project>/tests/unit/common/test_utils.py`
+- Check project's coverage threshold
 
 #### c. Database Changes
 
-- **Migration Required**: Schema changes need an Alembic migration (location varies by project, typically `<project>/db/migration/`)
-- **Repository Pattern**: Check if project uses repository pattern for DB access
-- **Model Updates**: Changes to DB models must be compatible with existing data
-- **Oslo.db**: Verify proper use of oslo.db utilities
+- Schema changes need an Alembic migration
+- Model updates must be compatible with existing data
+- Verify proper use of oslo.db utilities
 
 #### d. API Changes
 
-- **Versioning**: API changes must be versioned (check project's API structure)
-- **Type Validation**: Verify input validation (may use WSME, JSON Schema, or other frameworks)
-- **Backward Compatibility**: Don't break existing API contracts
-- **Documentation**: Update API reference docs
-- **Microversions**: Check if project uses API microversions
+- API changes must be versioned
+- Verify input validation
+- Don't break existing API contracts
+- Check for microversions if applicable
 
 #### e. Configuration Changes
 
-- **oslo.config**: New config options need proper definitions
-- **Sample Config**: Run `tox -e genconfig` to update sample config
-- **Documentation**: Document new options in appropriate RST files
+- New config options need proper `oslo.config` definitions
+- Run `tox -e genconfig` to update sample config
 
 #### f. Security
 
-- **Input Validation**: All user inputs must be validated
-- **SQL Injection**: Use SQLAlchemy ORM, not raw SQL
-- **Command Injection**: Sanitize inputs to shell commands
-- **Secrets**: No hardcoded credentials or secrets
-- **TLS/SSL**: Check certificate validation is not disabled
+- All user inputs must be validated
+- Use SQLAlchemy ORM, not raw SQL
+- Sanitize inputs to shell commands
+- No hardcoded credentials
+- Check certificate validation is not disabled
 
 ### 6. Run Automated Checks
 
-Execute the following tox environments:
+```bash
+tox -e pep8
+```
 
-1. **Linting:**
-   ```bash
-   tox -e pep8
-   ```
-
-2. **Unit Tests:**
-   ```bash
-   tox -e py3
-   ```
-
-3. **Affected Tests:** If you can identify specific affected tests, run them:
-   ```bash
-   # CORRECT SYNTAX: Use -- to separate tox args from test args
-   tox -e py3 -- <project>.tests.unit.path.to.test_module
-
-   # Example for Octavia:
-   tox -e py3 -- octavia.tests.unit.api.common.test_types
-   ```
-
-4. **Coverage Check:**
-   ```bash
-   tox -e cover
-   # Check project requirements (coverage thresholds vary by project)
-   ```
+```bash
+# Run affected tests — use -- to separate tox args from test args
+tox -e py3 -- <project>.tests.unit.path.to.test_module
+```
 
 ### 7. Review Commit Message
 
-Check that the commit message follows OpenStack format:
-
+Required format:
 ```
 Short summary (50 chars max, no period)
 
 Longer description explaining what and why (not how).
 Wrap at 72 characters.
 
-Can have multiple paragraphs.
-
 Closes-Bug: #XXXXXX
 Implements: blueprint name-of-blueprint
 Change-Id: IXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
-Required elements:
-- Clear, descriptive summary
-- Detailed explanation in body
-- References to bugs/blueprints if applicable
-- `Change-Id` footer (added by git-review commit hook)
-- `Signed-off-by` if present
-
 ### 8. Backport Review
 
-If the change targets a stable branch (e.g. `stable/2024.2`, `stable/2025.1`), it is a
-backport and must be reviewed differently from a normal patch.
+If the change targets a `stable/*` or `unmaintained/*` branch, or the commit message contains `(cherry picked from commit <sha>)`, it is a backport. Follow the backport-specific review **instead of** the full code-quality review in step 5.
 
-#### a. Detect a Backport
+#### a. Compare with the Original Commit
 
-A change is a backport when:
-- The target branch is a `stable/*` or `unmaintained/*` branch.
-- The commit message contains a `(cherry picked from commit <sha>)` line.
+Extract the SHA from the `(cherry picked from commit <sha>)` line, then:
 
-If either condition is true, follow the backport-specific review below **instead of**
-the full code-quality review in step 5 (the original commit was already reviewed on the
-main branch).
+```bash
+python3 ${SKILL_DIR}/gerrit_review.py backport-compare <original_sha>
+```
 
-#### b. Compare with the Original Commit
+The script diffs the original against the backport and checks for documented conflicts.
 
-1. **Locate the original commit** from the `(cherry picked from commit <sha>)` line.
-2. **Fetch and diff** the original patch against the backport:
-   ```bash
-   # Get the original commit diff
-   ORIGINAL_SHA=<sha from cherry-pick line>
-   git fetch origin master
-   git show "$ORIGINAL_SHA" > /tmp/original.patch
+#### b. Backport Policy
 
-   # Get the backport diff
-   git show HEAD > /tmp/backport.patch
-
-   # Compare (ignoring context line numbers)
-   diff -u /tmp/original.patch /tmp/backport.patch || true
-   ```
-3. **Check `Conflicts:` lines** in the commit message. Cherry-pick conflicts are
-   documented there — any difference between the original and the backport must be
-   explained by those conflict resolutions.
-4. **Flag any unexplained difference**: code that was added, removed, or changed beyond
-   what the conflict resolution requires is not acceptable in a backport.
-
-#### c. Backport Policy
-
-Backports to stable branches must comply with the
-[OpenStack Stable Branch Policy](https://docs.openstack.org/project-team-guide/stable-branches.html).
-Reject the backport if it introduces any of the following:
+Backports to stable branches must comply with the [OpenStack Stable Branch Policy](https://docs.openstack.org/project-team-guide/stable-branches.html). Reject if it introduces:
 
 | Forbidden in backports | Why |
 |---|---|
-| **New features** | Stable branches are bug-fix only |
-| **Database schema changes** (migrations) | Risk of data loss or upgrade breakage |
-| **Config option changes that alter default behavior** | Deployers expect stable defaults to stay stable |
-| **API changes** (new endpoints, changed responses, microversions) | Consumers depend on stable API contracts |
-| **New dependencies** or dependency version bumps | Stability and packaging constraints |
-| **Large refactors** | High risk, not appropriate for stable |
+| New features | Stable branches are bug-fix only |
+| Database schema changes | Risk of data loss or upgrade breakage |
+| Config option changes that alter defaults | Deployers expect stable defaults |
+| API changes | Consumers depend on stable contracts |
+| New or bumped dependencies | Stability and packaging constraints |
+| Large refactors | High risk, not appropriate for stable |
 
-Minor adaptations are acceptable when they are strictly necessary to make the
-cherry-pick apply cleanly (e.g. a renamed variable, a moved import), but they
-must correspond to documented conflicts.
+Minor adaptations are acceptable only when strictly necessary for a clean cherry-pick and documented in `Conflicts:`.
 
-#### d. What to Check Instead of the Full Code Review
+#### c. What to Check
 
-Since the original patch was already reviewed:
-- **Conflict resolution correctness**: does the resolved code behave identically to the original intent?
-- **Test applicability**: do the backported tests still pass on the stable branch? Are any tests missing because they depend on features not present in the stable branch?
-- **Release note**: backports normally do not need a new release note unless the bug fix was not release-noted on the main branch.
-- **Commit message**: must reference the original change and include the `(cherry picked from commit …)` line.
+- **Conflict resolution correctness**: resolved code must match the original intent
+- **Test applicability**: do backported tests pass? Are any missing due to stable branch differences?
+- **Release note**: normally not needed unless the fix was not release-noted on main
+- **Commit message**: must include `(cherry picked from commit …)`
 
 ### 9. Generate Review Report
 
-Create a markdown report with:
+Create `REVIEW_${REVIEW_NUM}.md` with:
 
 1. **Summary**: What the change does
-2. **Patchset History**:
-   - Current patchset number
-   - Number of previous patchsets
-   - Previous review scores
-3. **Previous Review Feedback**:
-   - Summary of comments from other reviewers
-   - Which issues have been addressed
-   - Which issues remain unresolved
-   - Any unanswered questions from reviewers
-4. **Files Changed**: List of modified files
-5. **Code Quality Issues**: Any HACKING.rst violations or style issues found
-6. **Testing**:
-   - Are there tests?
-   - Do tests pass?
-   - Is coverage adequate?
-   - Were tests added per previous reviewer requests?
-7. **Security Concerns**: Any security issues identified
-8. **Performance Impact**: Any performance considerations
-9. **Backward Compatibility**: Breaking changes?
-10. **Documentation**: Is documentation updated/needed?
-11. **Response to Previous Feedback**: Did the author address all previous comments?
-12. **Backport Assessment** (if applicable):
-   - Original commit SHA and link
-   - Differences from the original patch
-   - Whether conflicts are documented and resolutions are correct
-   - Policy compliance (no features, no DB/API/config changes)
-13. **Recommendation**:
-   - ✅ **Approve** (+2/+1): Ready to merge, all feedback addressed
-   - ⚠️ **Needs Work** (-1): Issues to address (list specific items including unaddressed previous feedback)
-   - ❌ **Reject** (-2): Major problems (or backport policy violation)
+2. **Patchset History**: Current patchset, previous scores
+3. **Previous Review Feedback**: Addressed vs unresolved issues
+4. **Files Changed**
+5. **Code Quality Issues**: HACKING.rst violations, style issues
+6. **Testing**: Tests present? Passing? Coverage adequate?
+7. **Security Concerns**
+8. **Performance Impact**
+9. **Backward Compatibility**
+10. **Documentation**
+11. **Backport Assessment** (if applicable): Original SHA, differences, policy compliance
+12. **Recommendation**:
+    - ✅ **Approve** (+2/+1): Ready to merge
+    - ⚠️ **Needs Work** (-1): Issues to address
+    - ❌ **Reject** (-2): Major problems or backport policy violation
 
 ### 10. Additional Considerations
 
-- **Design Principles**: Check project-specific design principles (see project documentation)
-  - Is it idempotent?
-  - Is it scalable and resilient?
-  - Does it follow project conventions?
-- **Dependencies**: Any new dependencies added? Are they in requirements.txt?
-  - Check for conflicts with global-requirements
-  - Verify license compatibility
-- **Documentation**: Should this have a release note? (`reno new slug-name`)
-- **Upgrade Impact**: Does this affect rolling upgrades?
-- **Configuration**: New config options properly defined with oslo.config?
+- **Design Principles**: Idempotent? Scalable? Follows project conventions?
+- **Dependencies**: New deps in requirements.txt? Compatible with global-requirements? License OK?
+- **Documentation**: Release note needed? (`reno new slug-name`)
+- **Upgrade Impact**: Affects rolling upgrades?
+- **Configuration**: New options properly defined with oslo.config?
 
 ## Example Usage
 
 ```
 /openstack-review 970404
-```
-
-This will fetch review 970404, analyze it, run checks, and generate a comprehensive review report.
-
-## Output Format
-
-The review should produce a detailed markdown report saved as `REVIEW_${REVIEW_NUM}.md` that can be used to:
-- Post feedback on Gerrit
-- Track review progress
-- Share with other reviewers
-- Document review decisions
-
----
-
-## Common Mistakes to Avoid
-
-### ❌ Skill Path Issues
-```bash
-# WRONG - hardcoded path may not exist
-python3 /some/fixed/path/analyze_comments.py /tmp/review_970404.json
-
-# CORRECT - use SKILL_DIR variable for flexibility
-SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
-python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_970404.json
-
-# OR use the appropriate path for your installation:
-# Global install (most common):
-python3 ~/.claude/skills/openstack-review/analyze_comments.py /tmp/review_970404.json
-
-# Project-specific install:
-python3 ./.claude/skills/openstack-review/analyze_comments.py /tmp/review_970404.json
-```
-
-### ❌ Wrong Filename for Comment Analysis Script
-```bash
-# WRONG - this file doesn't exist
-python3 ${SKILL_DIR}/get_review_comments.py 970404
-
-# CORRECT - the actual file is analyze_comments.py
-SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
-python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_970404.json
-```
-
-### ❌ Missing Review Data File for analyze_comments.py
-```bash
-# WRONG - script expects the data file as first argument, not review number
-python3 ${SKILL_DIR}/analyze_comments.py 970404
-
-# CORRECT - first fetch the data, then pass the file path
-curl -s "https://review.opendev.org/changes/openstack%2Foctavia~970404/detail?o=ALL_REVISIONS&o=ALL_COMMITS&o=ALL_FILES&o=MESSAGES&o=DETAILED_LABELS&o=DETAILED_ACCOUNTS" | tail -n +2 > /tmp/review_970404.json
-python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_970404.json
-```
-
-### ❌ Incorrect tox Test Syntax
-```bash
-# WRONG - tox will error with "unrecognized arguments"
-tox -e py3 octavia.tests.unit.api.common.test_types
-
-# CORRECT - use -- to separate tox args from test args
-tox -e py3 -- octavia.tests.unit.api.common.test_types
-```
-
----
-
-## Quick Reference: Correct Usage Pattern
-
-```bash
-# 0. Set skill directory (adjust based on your installation)
-# Default to global install, override if needed
-SKILL_DIR="${SKILL_DIR:-$HOME/.claude/skills/openstack-review}"
-# For project-specific install, use: SKILL_DIR="./.claude/skills/openstack-review"
-
-# 1. Fetch the review
-${SKILL_DIR}/fetch_review.sh 970404
-
-# 2. Get review comments analysis
-PROJECT=$(grep "^project=" .gitreview | cut -d= -f2 | sed 's/\.git$//')
-GERRIT_HOST=$(grep "^host=" .gitreview | cut -d= -f2)
-PROJECT_ENCODED=$(echo "$PROJECT" | sed 's/\//%2F/g')
-REVIEW_NUM=970404
-
-curl -s "https://${GERRIT_HOST}/changes/${PROJECT_ENCODED}~${REVIEW_NUM}/detail?o=ALL_REVISIONS&o=ALL_COMMITS&o=ALL_FILES&o=MESSAGES&o=DETAILED_LABELS&o=DETAILED_ACCOUNTS" | tail -n +2 > /tmp/review_${REVIEW_NUM}.json
-python3 ${SKILL_DIR}/analyze_comments.py /tmp/review_${REVIEW_NUM}.json
-
-# 3. Review the code
-git show --stat
-git show HEAD
-
-# 4. Run automated checks
-tox -e pep8
-tox -e py3 -- <affected.test.module>
-
-# 5. Generate review report
-# Create REVIEW_${REVIEW_NUM}.md with findings
 ```
