@@ -93,18 +93,7 @@ Check the project's HACKING.rst. Common standards:
 - No hardcoded credentials
 - Check certificate validation is not disabled
 
-### 6. Run Automated Checks
-
-```bash
-tox -e pep8
-```
-
-```bash
-# Run affected tests — use -- to separate tox args from test args
-tox -e py3 -- <project>.tests.unit.path.to.test_module
-```
-
-### 7. Review Commit Message
+### 6. Review Commit Message
 
 Required format:
 ```
@@ -118,7 +107,7 @@ Implements: blueprint name-of-blueprint
 Change-Id: IXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
-### 8. Backport Review
+### 7. Backport Review
 
 If the change targets a `stable/*` or `unmaintained/*` branch, or the commit message contains `(cherry picked from commit <sha>)`, it is a backport. Follow the backport-specific review **instead of** the full code-quality review in step 5.
 
@@ -154,7 +143,7 @@ Minor adaptations are acceptable only when strictly necessary for a clean cherry
 - **Release note**: normally not needed unless the fix was not release-noted on main
 - **Commit message**: must include `(cherry picked from commit …)`
 
-### 9. Generate Review Report
+### 8. Generate Review Report
 
 Create `REVIEW_${REVIEW_NUM}.md` with:
 
@@ -163,7 +152,7 @@ Create `REVIEW_${REVIEW_NUM}.md` with:
 3. **Previous Review Feedback**: Addressed vs unresolved issues
 4. **Files Changed**
 5. **Code Quality Issues**: HACKING.rst violations, style issues
-6. **Testing**: Tests present? Passing? Coverage adequate?
+6. **Testing**: Are tests present for new code? Coverage adequate? (CI runs the tests)
 7. **Security Concerns**
 8. **Performance Impact**
 9. **Backward Compatibility**
@@ -174,7 +163,7 @@ Create `REVIEW_${REVIEW_NUM}.md` with:
     - ⚠️ **Needs Work** (-1): Issues to address
     - ❌ **Reject** (-2): Major problems or backport policy violation
 
-### 10. Additional Considerations
+### 9. Additional Considerations
 
 - **Design Principles**: Idempotent? Scalable? Follows project conventions?
 - **Dependencies**: New deps in requirements.txt? Compatible with global-requirements? License OK?
