@@ -89,6 +89,13 @@ check out the correct patchset.
 
 Save the final review report (REVIEW_{review_number}.md) to: {output_dir}
 
+OUTPUT STYLE: Before each tool call, write one short sentence explaining
+WHY you are doing it (not what — the tool call itself shows that).
+Examples: "Checking if the spec was approved.", "Looking for missing test
+coverage for the new validation logic.", "The branch is stable/ so this
+is a backport — comparing with the original."
+Do not be verbose — one sentence is enough.
+
 ---
 
 {skill_md}
