@@ -47,7 +47,7 @@ Using the comments output from step 2:
 
 ### 5. Code Quality Checks
 
-Review changes for OpenStack-specific requirements:
+**Do NOT run linters, test suites, or security scanners** (pep8, pylint, bandit, pytest, tox, etc.) — CI already handles all automated checks. This step is a **manual code review**: read the diff and assess the changes against these criteria:
 
 #### a. HACKING.rst Compliance
 
@@ -62,10 +62,9 @@ Check the project's HACKING.rst. Common standards:
 
 #### b. Test Coverage
 
-- All new features must have unit tests
-- Bug fixes must include a test that fails without the fix
-- Test tree must mirror code structure: `<project>/common/utils.py` → `<project>/tests/unit/common/test_utils.py`
-- Check project's coverage threshold
+- New features should have unit tests — check if test files were added/modified
+- Bug fixes should include a test for the fixed behavior
+- Test tree should mirror code structure: `<project>/common/utils.py` → `<project>/tests/unit/common/test_utils.py`
 
 #### c. Database Changes
 
@@ -83,7 +82,7 @@ Check the project's HACKING.rst. Common standards:
 #### e. Configuration Changes
 
 - New config options need proper `oslo.config` definitions
-- Run `tox -e genconfig` to update sample config
+- If new options are added, check that sample config generation would pick them up
 
 #### f. Security
 
