@@ -26,7 +26,13 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage, AssistantMessage
+from claude_agent_sdk import (
+    query,
+    ClaudeAgentOptions,
+    ResultMessage,
+    AssistantMessage,
+    UserMessage,
+)
 
 
 SKILL_DIR = Path(__file__).resolve().parent
@@ -78,8 +84,8 @@ The Gerrit host is: {gerrit_host}
 Replace $ARGUMENTS with {review_number} everywhere in the instructions.
 
 The repository has already been cloned into your working directory.
-You do NOT need to clone it again — just run fetch_review.sh to check out
-the correct patchset.
+You do NOT need to clone it again — just run gerrit_review.py fetch to
+check out the correct patchset.
 
 Save the final review report (REVIEW_{review_number}.md) to: {output_dir}
 
@@ -132,7 +138,38 @@ async def run_review(
                     if hasattr(block, "text") and block.text:
                         print(block.text)
                     elif hasattr(block, "name"):
-                        print(f"  [tool] {block.name}")
+                        inputs = getattr(block, "input", {}) or {}
+                        if block.name == "Bash":
+                            cmd = inputs.get("command", "")
+                            desc = inputs.get("description", "")
+                            label = desc if desc else cmd[:120]
+                            print(f"  [Bash] {label}")
+                        elif block.name == "Read":
+                            print(f"  [Read] {inputs.get('file_path', '?')}")
+                        elif block.name == "Write":
+                            print(f"  [Write] {inputs.get('file_path', '?')}")
+                        elif block.name == "Grep":
+                            print(f"  [Grep] {inputs.get('pattern', '?')}")
+                        else:
+                            print(f"  [{block.name}]")
+
+            elif isinstance(message, UserMessage):
+                for block in message.content:
+                    text = ""
+                    if hasattr(block, "text"):
+                        text = block.text or ""
+                    elif hasattr(block, "content"):
+                        text = block.content or ""
+                    if text:
+                        lines = text.strip().split("\n")
+                        if len(lines) <= 20:
+                            for line in lines:
+                                print(f"    {line}")
+                        else:
+                            for line in lines[:10]:
+                                print(f"    {line}")
+                            print(f"    ... ({len(lines) - 10} more lines)")
+                        print()
 
             elif isinstance(message, ResultMessage):
                 print("-" * 60)
