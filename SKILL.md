@@ -250,7 +250,71 @@ Required elements:
 - `Change-Id` footer (added by git-review commit hook)
 - `Signed-off-by` if present
 
-### 8. Generate Review Report
+### 8. Backport Review
+
+If the change targets a stable branch (e.g. `stable/2024.2`, `stable/2025.1`), it is a
+backport and must be reviewed differently from a normal patch.
+
+#### a. Detect a Backport
+
+A change is a backport when:
+- The target branch is a `stable/*` or `unmaintained/*` branch.
+- The commit message contains a `(cherry picked from commit <sha>)` line.
+
+If either condition is true, follow the backport-specific review below **instead of**
+the full code-quality review in step 5 (the original commit was already reviewed on the
+main branch).
+
+#### b. Compare with the Original Commit
+
+1. **Locate the original commit** from the `(cherry picked from commit <sha>)` line.
+2. **Fetch and diff** the original patch against the backport:
+   ```bash
+   # Get the original commit diff
+   ORIGINAL_SHA=<sha from cherry-pick line>
+   git fetch origin master
+   git show "$ORIGINAL_SHA" > /tmp/original.patch
+
+   # Get the backport diff
+   git show HEAD > /tmp/backport.patch
+
+   # Compare (ignoring context line numbers)
+   diff -u /tmp/original.patch /tmp/backport.patch || true
+   ```
+3. **Check `Conflicts:` lines** in the commit message. Cherry-pick conflicts are
+   documented there — any difference between the original and the backport must be
+   explained by those conflict resolutions.
+4. **Flag any unexplained difference**: code that was added, removed, or changed beyond
+   what the conflict resolution requires is not acceptable in a backport.
+
+#### c. Backport Policy
+
+Backports to stable branches must comply with the
+[OpenStack Stable Branch Policy](https://docs.openstack.org/project-team-guide/stable-branches.html).
+Reject the backport if it introduces any of the following:
+
+| Forbidden in backports | Why |
+|---|---|
+| **New features** | Stable branches are bug-fix only |
+| **Database schema changes** (migrations) | Risk of data loss or upgrade breakage |
+| **Config option changes that alter default behavior** | Deployers expect stable defaults to stay stable |
+| **API changes** (new endpoints, changed responses, microversions) | Consumers depend on stable API contracts |
+| **New dependencies** or dependency version bumps | Stability and packaging constraints |
+| **Large refactors** | High risk, not appropriate for stable |
+
+Minor adaptations are acceptable when they are strictly necessary to make the
+cherry-pick apply cleanly (e.g. a renamed variable, a moved import), but they
+must correspond to documented conflicts.
+
+#### d. What to Check Instead of the Full Code Review
+
+Since the original patch was already reviewed:
+- **Conflict resolution correctness**: does the resolved code behave identically to the original intent?
+- **Test applicability**: do the backported tests still pass on the stable branch? Are any tests missing because they depend on features not present in the stable branch?
+- **Release note**: backports normally do not need a new release note unless the bug fix was not release-noted on the main branch.
+- **Commit message**: must reference the original change and include the `(cherry picked from commit …)` line.
+
+### 9. Generate Review Report
 
 Create a markdown report with:
 
@@ -276,12 +340,17 @@ Create a markdown report with:
 9. **Backward Compatibility**: Breaking changes?
 10. **Documentation**: Is documentation updated/needed?
 11. **Response to Previous Feedback**: Did the author address all previous comments?
-12. **Recommendation**:
+12. **Backport Assessment** (if applicable):
+   - Original commit SHA and link
+   - Differences from the original patch
+   - Whether conflicts are documented and resolutions are correct
+   - Policy compliance (no features, no DB/API/config changes)
+13. **Recommendation**:
    - ✅ **Approve** (+2/+1): Ready to merge, all feedback addressed
    - ⚠️ **Needs Work** (-1): Issues to address (list specific items including unaddressed previous feedback)
-   - ❌ **Reject** (-2): Major problems
+   - ❌ **Reject** (-2): Major problems (or backport policy violation)
 
-### 9. Additional Considerations
+### 10. Additional Considerations
 
 - **Design Principles**: Check project-specific design principles (see project documentation)
   - Is it idempotent?
