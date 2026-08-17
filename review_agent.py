@@ -166,7 +166,7 @@ async def run_review(
                     if hasattr(block, "text"):
                         text = block.text or ""
                     elif hasattr(block, "content"):
-                        text = block.content or ""
+                        text = block.content if isinstance(block.content, str) else ""
                     if text:
                         lines = text.strip().split("\n")
                         if len(lines) <= 20:
