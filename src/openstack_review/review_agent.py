@@ -34,11 +34,6 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
-try:
-    from anthropic import AnthropicVertex
-except ImportError:
-    AnthropicVertex = None
-
 
 # Determine where skill files are located
 # When installed as package: repo root or installed data directory
@@ -150,41 +145,22 @@ async def run_review(
     print(f"Using model: {model_config['model']} (from {model_config['source']})")
     print(f"Max turns: {model_config['max_turns']}")
 
-    # Vertex AI configuration from environment variables
-    use_vertex = os.getenv("CLAUDE_CODE_USE_VERTEX")
-    vertex_project = os.getenv("ANTHROPIC_VERTEX_PROJECT_ID")
-    vertex_region = os.getenv("CLOUD_ML_REGION", "global")
+    # Note: Vertex AI auto-detected from environment variables:
+    # - CLAUDE_CODE_USE_VERTEX
+    # - ANTHROPIC_VERTEX_PROJECT_ID
+    # - CLOUD_ML_REGION
+    # The Agent SDK automatically picks these up - no explicit config needed
 
-    # Build options
-    options_kwargs = {
-        "model": model_config["model"],
-        "allowed_tools": ["Read", "Bash", "Grep", "Glob", "WebFetch", "Write"],
-        "permission_mode": "acceptEdits",
-        "cwd": work_dir,
-        "add_dirs": [output_dir, str(SKILL_DIR)],
-        "env": {"SKILL_DIR": str(SKILL_DIR)},
-        "system_prompt": build_system_prompt(review_number, output_dir, gerrit_host),
-        "max_turns": model_config["max_turns"],
-    }
-
-    # Create Vertex AI client if enabled
-    if use_vertex and vertex_project:
-        print(f"Using Vertex AI (project: {vertex_project}, region: {vertex_region})")
-        if AnthropicVertex is None:
-            print("Warning: anthropic[vertex] not installed, falling back to Anthropic API")
-        else:
-            try:
-                # Create AnthropicVertex client
-                vertex_client = AnthropicVertex(
-                    project_id=vertex_project,
-                    region=vertex_region,
-                )
-                options_kwargs["client"] = vertex_client
-            except Exception as e:
-                print(f"Warning: Failed to create Vertex AI client: {e}")
-                print("Falling back to Anthropic API")
-
-    options = ClaudeAgentOptions(**options_kwargs)
+    options = ClaudeAgentOptions(
+        model=model_config["model"],
+        allowed_tools=["Read", "Bash", "Grep", "Glob", "WebFetch", "Write"],
+        permission_mode="acceptEdits",
+        cwd=work_dir,
+        add_dirs=[output_dir, str(SKILL_DIR)],
+        env={"SKILL_DIR": str(SKILL_DIR)},
+        system_prompt=build_system_prompt(review_number, output_dir, gerrit_host),
+        max_turns=model_config["max_turns"],
+    )
 
     report_path = Path(output_dir) / f"REVIEW_{review_number}.md"
     prompt = (
