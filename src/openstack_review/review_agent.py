@@ -216,30 +216,33 @@ async def run_review(
             elif isinstance(message, ResultMessage):
                 print("-" * 60)
                 if message.subtype == "success":
-                    print("Review complete.")
-                    if message.total_cost_usd:
-                        print(f"Total cost: ${message.total_cost_usd:.4f}")
+                    print("✓ Review complete.")
+                    print()
+
+                    # Token usage and cost breakdown
                     usage_by_model = getattr(message, "usage_by_model", None)
                     if usage_by_model:
+                        print("Token Usage & Cost:")
                         for model_name, usage in usage_by_model.items():
-                            parts = [f"  {model_name}:"]
+                            inp = getattr(usage, "input_tokens", 0)
+                            out = getattr(usage, "output_tokens", 0)
                             cost = getattr(usage, "cost_usd", None)
-                            if cost is not None:
-                                parts.append(f"${cost:.4f}")
-                            inp = getattr(usage, "input_tokens", None)
-                            out = getattr(usage, "output_tokens", None)
-                            if inp is not None and out is not None:
-                                parts.append(f"— {inp} in / {out} out")
-                            print(" ".join(parts))
                             cache_read = getattr(usage, "cache_read_tokens", 0)
-                            if cache_read:
-                                cache_create = getattr(
-                                    usage, "cache_creation_tokens", 0
-                                )
-                                print(
-                                    f"    cache: {cache_read} read"
-                                    f" / {cache_create} created"
-                                )
+                            cache_create = getattr(usage, "cache_creation_tokens", 0)
+
+                            print(f"  Model: {model_name}")
+                            print(f"    Tokens: {inp:,} input / {out:,} output = {inp + out:,} total")
+                            if cache_read or cache_create:
+                                print(f"    Cache:  {cache_read:,} read / {cache_create:,} created")
+                            if cost is not None:
+                                print(f"    Cost:   ${cost:.4f}")
+                            print()
+
+                    # Total cost summary
+                    if message.total_cost_usd:
+                        print(f"Total Cost: ${message.total_cost_usd:.4f}")
+                        print()
+
                     if report_path.exists():
                         print(f"Report saved to: {report_path}")
                 elif message.subtype == "error_max_turns":
