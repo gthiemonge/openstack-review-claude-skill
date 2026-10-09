@@ -145,28 +145,30 @@ async def run_review(
     print(f"Using model: {model_config['model']} (from {model_config['source']})")
     print(f"Max turns: {model_config['max_turns']}")
 
-    # Vertex AI auto-detection from environment variables
-    # The Claude Agent SDK automatically detects Vertex AI configuration from:
-    # - CLAUDE_CODE_USE_VERTEX
-    # - ANTHROPIC_VERTEX_PROJECT_ID
-    # - CLOUD_ML_REGION
+    # Vertex AI configuration from environment variables
     use_vertex = os.getenv("CLAUDE_CODE_USE_VERTEX")
     vertex_project = os.getenv("ANTHROPIC_VERTEX_PROJECT_ID")
     vertex_region = os.getenv("CLOUD_ML_REGION", "global")
 
+    # Build options with Vertex AI support
+    options_kwargs = {
+        "model": model_config["model"],
+        "allowed_tools": ["Read", "Bash", "Grep", "Glob", "WebFetch", "Write"],
+        "permission_mode": "acceptEdits",
+        "cwd": work_dir,
+        "add_dirs": [output_dir, str(SKILL_DIR)],
+        "env": {"SKILL_DIR": str(SKILL_DIR)},
+        "system_prompt": build_system_prompt(review_number, output_dir, gerrit_host),
+        "max_turns": model_config["max_turns"],
+    }
+
+    # Add Vertex AI parameters if enabled
     if use_vertex and vertex_project:
         print(f"Using Vertex AI (project: {vertex_project}, region: {vertex_region})")
+        options_kwargs["vertex_project_id"] = vertex_project
+        options_kwargs["vertex_region"] = vertex_region
 
-    options = ClaudeAgentOptions(
-        model=model_config["model"],
-        allowed_tools=["Read", "Bash", "Grep", "Glob", "WebFetch", "Write"],
-        permission_mode="acceptEdits",
-        cwd=work_dir,
-        add_dirs=[output_dir, str(SKILL_DIR)],
-        env={"SKILL_DIR": str(SKILL_DIR)},
-        system_prompt=build_system_prompt(review_number, output_dir, gerrit_host),
-        max_turns=model_config["max_turns"],
-    )
+    options = ClaudeAgentOptions(**options_kwargs)
 
     report_path = Path(output_dir) / f"REVIEW_{review_number}.md"
     prompt = (
