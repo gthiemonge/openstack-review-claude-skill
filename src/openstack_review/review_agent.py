@@ -257,9 +257,34 @@ async def run_review(
 
                     # Per-model breakdown if available
                     if model_usage:
-                        print("Per-Model Usage:")
+                        print("Per-Model Breakdown:")
                         for model_name, stats in model_usage.items():
-                            print(f"  {model_name}: {stats}")
+                            if isinstance(stats, dict):
+                                print(f"  Model: {model_name}")
+
+                                # Input tokens
+                                model_inp = stats.get("inputTokens", 0)
+                                model_cache_read = stats.get("cacheReadInputTokens", 0)
+                                model_cache_create = stats.get("cacheCreationInputTokens", 0)
+
+                                # Output tokens
+                                model_out = stats.get("outputTokens", 0)
+                                model_thinking = stats.get("thinkingTokens", 0)
+
+                                # Cost and provider
+                                model_cost = stats.get("costUSD", 0)
+                                provider = stats.get("provider", "")
+
+                                print(f"    Provider:    {provider}")
+                                print(f"    Input:       {model_inp:,} new / {model_cache_read:,} cache read / {model_cache_create:,} cache created")
+                                print(f"    Output:      {model_out:,} tokens", end="")
+                                if model_thinking:
+                                    print(f" ({model_thinking:,} thinking)")
+                                else:
+                                    print()
+                                print(f"    Cost:        ${model_cost:.4f}")
+                            else:
+                                print(f"  {model_name}: {stats}")
                         print()
 
                     # Total cost
