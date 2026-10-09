@@ -1,0 +1,11 @@
+# OpenStack Review Skill Requirements
+
+# Core dependencies
+claude-agent-sdk
+
+# Anthropic API
+anthropic
+
+# Vertex AI (Google Cloud) dependencies
+google-auth
+google-cloud-aiplatform

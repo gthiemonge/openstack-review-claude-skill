@@ -19,6 +19,35 @@ A comprehensive Claude Code skill for reviewing OpenStack Gerrit changes with au
 
 This skill works with any OpenStack project that uses Gerrit for code review.
 
+### Detect Available Models (First Time Setup)
+
+If you're on an enterprise plan, detect which Claude models are available:
+
+**For Anthropic API:**
+```bash
+# Detect available models and get preset suggestions
+python detect_models.py
+
+# Automatically update review_config.py with detected models
+python detect_models.py --update-config
+```
+
+**For Vertex AI (Google Cloud):**
+```bash
+# Authenticate with Google Cloud
+gcloud auth application-default login
+
+# Detect available models
+python detect_models.py --vertex --project YOUR_PROJECT_ID
+
+# Automatically update review_config.py
+python detect_models.py --vertex --project YOUR_PROJECT_ID --update-config
+```
+
+See [VERTEX_AI_SETUP.md](VERTEX_AI_SETUP.md) for complete Vertex AI setup instructions.
+
+This will test your API against common Claude models and suggest an optimized configuration.
+
 ### For a Specific Project
 
 The skill is already available in this repository at `.claude/skills/openstack-review/`.
@@ -46,6 +75,27 @@ This will:
 4. Analyze all code changes
 5. Run code quality checks
 6. Generate a comprehensive review report including feedback tracking
+
+### Direct Script Usage with Model Selection
+
+```bash
+# Standard review (default)
+python review_agent.py 970404
+
+# Quick review for minor changes
+python review_agent.py 970404 --preset quick
+
+# Thorough review for critical changes
+python review_agent.py 970404 --preset thorough
+
+# Use specific model
+python review_agent.py 970404 --model claude-opus-5
+
+# List available presets
+python review_agent.py --list-presets
+```
+
+See [MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md) for detailed model configuration options, especially for enterprise plans with different model availability.
 
 ### Manual Fetch (Alternative)
 
@@ -169,8 +219,15 @@ cat REVIEW_970404.md
 
 - **SKILL.md**: Main skill instructions and workflow
 - **reference.md**: Detailed reference for common issues and examples
-- **fetch_review.sh**: Helper script to fetch Gerrit reviews
-- **analyze_comments.py**: Python script to analyze review comments and track feedback
+- **review_agent.py**: Main agent script with Claude Agent SDK integration (supports Anthropic API and Vertex AI)
+- **review_config.py**: Model preset configuration (customize for your enterprise plan)
+- **review_config.example.py**: Example configurations for different enterprise plans
+- **review_config_vertex.py**: Example Vertex AI configuration
+- **detect_models.py**: Automatic model detection script (supports both Anthropic API and Vertex AI)
+- **gerrit_review.py**: Unified CLI for Gerrit operations (fetch, comments, backport-compare)
+- **MODEL_CONFIGURATION.md**: Detailed guide for customizing models and presets
+- **VERTEX_AI_SETUP.md**: Complete Vertex AI setup guide
+- **QUICKSTART.md**: Quick start guide
 - **README.md**: This file
 - **CHANGELOG.md**: Version history and updates
 

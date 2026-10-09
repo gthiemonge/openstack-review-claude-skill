@@ -34,6 +34,8 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
+from review_config import get_model_config, list_presets
+
 
 SKILL_DIR = Path(__file__).resolve().parent
 
@@ -113,19 +115,41 @@ async def run_review(
     output_dir: str,
     gerrit_host: str,
     work_dir: str,
+    preset: str = None,
+    model_override: str = None,
+    vertex_project: str = None,
+    vertex_region: str = None,
 ) -> None:
     os.makedirs(output_dir, exist_ok=True)
 
-    options = ClaudeAgentOptions(
-        model="claude-sonnet-5",
-        allowed_tools=["Read", "Bash", "Grep", "Glob", "WebFetch", "Write"],
-        permission_mode="acceptEdits",
-        cwd=work_dir,
-        add_dirs=[output_dir, str(SKILL_DIR)],
-        env={"SKILL_DIR": str(SKILL_DIR)},
-        system_prompt=build_system_prompt(review_number, output_dir, gerrit_host),
-        max_turns=50,
-    )
+    # Get model configuration based on preset or override
+    model_config = get_model_config(preset=preset, model_override=model_override)
+
+    print(f"Using model: {model_config['model']} (from {model_config['source']})")
+    print(f"Max turns: {model_config['max_turns']}")
+
+    # Build options dict
+    options_dict = {
+        "model": model_config["model"],
+        "allowed_tools": ["Read", "Bash", "Grep", "Glob", "WebFetch", "Write"],
+        "permission_mode": "acceptEdits",
+        "cwd": work_dir,
+        "add_dirs": [output_dir, str(SKILL_DIR)],
+        "env": {"SKILL_DIR": str(SKILL_DIR)},
+        "system_prompt": build_system_prompt(review_number, output_dir, gerrit_host),
+        "max_turns": model_config["max_turns"],
+    }
+
+    # Add Vertex AI configuration if provided
+    if vertex_project:
+        print(f"Using Vertex AI (project: {vertex_project}, region: {vertex_region or 'us-east5'})")
+        options_dict["anthropic_client_config"] = {
+            "vertex": True,
+            "vertex_project_id": vertex_project,
+            "vertex_region": vertex_region or "us-east5",
+        }
+
+    options = ClaudeAgentOptions(**options_dict)
 
     report_path = Path(output_dir) / f"REVIEW_{review_number}.md"
     prompt = (
@@ -222,7 +246,9 @@ async def run_review(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Review an OpenStack Gerrit change using Claude"
+        description="Review an OpenStack Gerrit change using Claude",
+        epilog=list_presets(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("review_number", type=int, help="Gerrit review number")
     parser.add_argument(
@@ -235,7 +261,42 @@ def main() -> None:
         default="review.opendev.org",
         help="Gerrit hostname (default: review.opendev.org)",
     )
+    parser.add_argument(
+        "--preset",
+        choices=["quick", "standard", "thorough"],
+        help="Review preset (quick/standard/thorough). See presets below. "
+        "Override with REVIEW_PRESET environment variable.",
+    )
+    parser.add_argument(
+        "--model",
+        help="Specific Claude model to use (overrides preset). "
+        "Examples: claude-sonnet-5, claude-opus-5, claude-sonnet-4-5. "
+        "Override with REVIEW_MODEL environment variable.",
+    )
+    parser.add_argument(
+        "--list-presets",
+        action="store_true",
+        help="List available presets and exit",
+    )
+    parser.add_argument(
+        "--vertex-project",
+        help="Google Cloud project ID for Vertex AI. "
+        "Alternative: set GOOGLE_CLOUD_PROJECT environment variable.",
+    )
+    parser.add_argument(
+        "--vertex-region",
+        default=os.getenv("GOOGLE_CLOUD_REGION", "global"),
+        help="Google Cloud region for Vertex AI (default: global or GOOGLE_CLOUD_REGION env var)",
+    )
     args = parser.parse_args()
+
+    if args.list_presets:
+        print(list_presets())
+        sys.exit(0)
+
+    # Get Vertex AI config from args or environment
+    vertex_project = args.vertex_project or os.getenv("GOOGLE_CLOUD_PROJECT")
+    vertex_region = args.vertex_region
 
     output_dir = os.path.abspath(args.output_dir)
 
@@ -268,7 +329,18 @@ def main() -> None:
     print(f"Output directory: {output_dir}")
     print(f"Skill directory:  {SKILL_DIR}")
 
-    asyncio.run(run_review(args.review_number, output_dir, args.gerrit_host, repo_dir))
+    asyncio.run(
+        run_review(
+            args.review_number,
+            output_dir,
+            args.gerrit_host,
+            repo_dir,
+            preset=args.preset,
+            model_override=args.model,
+            vertex_project=vertex_project,
+            vertex_region=vertex_region,
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,142 @@
 # OpenStack Review Skill - Changelog
 
+## Version 2.3 - Claude 4.x Model Support
+
+### New Features
+
+**Support for Claude 4.x Models** - Added support for latest Claude models:
+- Claude Opus 4.8
+- Claude Sonnet 4.6
+
+These models are now included in:
+- Detection script model lists (both Anthropic API and Vertex AI)
+- Default presets in `review_config.py`
+- Vertex AI example configuration
+- Documentation
+
+**Default Configuration Updated:**
+- `quick`: claude-sonnet-4.6
+- `standard`: claude-sonnet-4.6
+- `thorough`: claude-opus-4.8
+
+Run detection to find which models are available on your plan:
+```bash
+python detect_models.py --vertex --project YOUR_PROJECT
+```
+
+## Version 2.2 - Model Configuration System
+
+### New Features
+
+**Flexible Model Selection** - Added comprehensive model configuration system designed for enterprise plans with different model availability, including full Vertex AI support.
+
+#### 1. Review Presets
+Three built-in presets for different review scenarios:
+- **quick**: Fast review for minor changes (Sonnet 4.5, 30 turns)
+- **standard**: Comprehensive review for most changes (Sonnet 5, 50 turns)
+- **thorough**: Deep review for critical changes (Opus 5, 75 turns)
+
+#### 2. Multiple Configuration Options
+- Command-line flags: `--preset` and `--model`
+- Environment variables: `REVIEW_PRESET` and `REVIEW_MODEL`
+- Configuration file: `review_config.py` for permanent customization
+- Priority system: CLI > env vars > config defaults
+
+#### 3. Enterprise Plan Support
+- Easy customization via `review_config.py`
+- Example configurations for common enterprise scenarios
+- Graceful handling of unavailable models
+- Documentation for adapting to plan-specific model availability
+
+#### 4. Automatic Model Detection
+- **detect_models.py**: New utility script to detect available models
+- Supports both Anthropic API and Vertex AI
+- Tests your API against common Claude model IDs
+- Reports which models work on your enterprise plan
+- Suggests optimized preset configuration
+- Can automatically update review_config.py
+- Handles enterprise plans with limited model access
+
+**Anthropic API:**
+```bash
+# Detect available models
+python detect_models.py
+
+# Auto-update configuration
+python detect_models.py --update-config
+```
+
+**Vertex AI:**
+```bash
+# Detect available models
+python detect_models.py --vertex --project YOUR_PROJECT_ID
+
+# Auto-update configuration
+python detect_models.py --vertex --project YOUR_PROJECT_ID --update-config
+```
+
+#### 5. Vertex AI Support
+Full support for Google Cloud's Vertex AI:
+- Automatic detection of Vertex AI models
+- Different model naming conventions (e.g., `claude-3-5-sonnet-v2@20241022`)
+- Google Cloud authentication integration
+- Region selection support
+- Command-line flags: `--vertex-project`, `--vertex-region`
+- Environment variables: `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_REGION`
+
+**Usage:**
+```bash
+# Set environment variables
+export GOOGLE_CLOUD_PROJECT=my-project
+export GOOGLE_CLOUD_REGION=us-east5
+
+# Run review
+python review_agent.py 970404
+
+# Or use command-line flags
+python review_agent.py 970404 --vertex-project my-project --vertex-region us-east5
+```
+
+See [VERTEX_AI_SETUP.md](VERTEX_AI_SETUP.md) for complete setup guide.
+
+#### 6. New Files
+- **review_config.py**: Model preset configuration (user-customizable)
+- **review_config.example.py**: Example configurations for different plans
+- **review_config_vertex.py**: Example Vertex AI configuration
+- **detect_models.py**: Automatic model detection for both Anthropic API and Vertex AI
+- **MODEL_CONFIGURATION.md**: Comprehensive configuration guide
+- **VERTEX_AI_SETUP.md**: Complete Vertex AI setup guide
+
+#### 7. Enhanced CLI
+```bash
+# Use presets
+python review_agent.py 970404 --preset thorough
+
+# Override model directly
+python review_agent.py 970404 --model claude-opus-5
+
+# List available presets
+python review_agent.py --list-presets
+
+# Environment variable control
+REVIEW_PRESET=thorough python review_agent.py 970404
+```
+
+### Use Cases
+1. **Enterprise plans**: Easily adapt to available models in your plan
+2. **Cost control**: Choose appropriate model tier for each review
+3. **Quality scaling**: Use thorough reviews for critical changes
+4. **Flexibility**: Override on-the-fly without editing config files
+
+### Files Added
+- `review_config.py`: Configurable model presets
+- `review_config.example.py`: Example configurations
+- `MODEL_CONFIGURATION.md`: Configuration documentation
+
+### Files Modified
+- `review_agent.py`: Integrated model configuration system
+- `README.md`: Added model selection usage examples
+
 ## Version 2.1 - Previous Comment Analysis
 
 ### New Features
