@@ -157,8 +157,8 @@ Vertex AI uses different model IDs than the Anthropic API:
 
 | Vertex AI Model ID | Equivalent Anthropic API | Description |
 |-------------------|-------------------------|-------------|
-| `claude-opus-4.8` | `claude-opus-4.8` | Claude Opus 4.8 (latest) |
-| `claude-sonnet-4.6` | `claude-sonnet-4.6` | Claude Sonnet 4.6 (latest) |
+| `claude-opus-4-8` | `claude-opus-4-8` | Claude Opus 4.8 (latest) |
+| `claude-sonnet-4-6` | `claude-sonnet-4-6` | Claude Sonnet 4.6 (latest) |
 | `claude-3-5-sonnet-v2@20241022` | `claude-3-5-sonnet-20241022` | Claude 3.5 Sonnet v2 |
 | `claude-3-5-sonnet@20240620` | `claude-3-5-sonnet-20240620` | Claude 3.5 Sonnet |
 | `claude-3-opus@20240229` | `claude-3-opus-20240229` | Claude 3 Opus |

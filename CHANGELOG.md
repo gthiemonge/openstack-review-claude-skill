@@ -15,9 +15,9 @@ These models are now included in:
 - Documentation
 
 **Default Configuration Updated:**
-- `quick`: claude-sonnet-4.6
-- `standard`: claude-sonnet-4.6
-- `thorough`: claude-opus-4.8
+- `quick`: claude-sonnet-4-6
+- `standard`: claude-sonnet-4-6
+- `thorough`: claude-opus-4-8
 
 Run detection to find which models are available on your plan:
 ```bash
