@@ -219,16 +219,26 @@ async def run_review(
                     print("✓ Review complete.")
                     print()
 
-                    # Token usage and cost breakdown
+                    # Debug: Check what attributes are available
+                    print(f"DEBUG: Available attributes: {[a for a in dir(message) if not a.startswith('_')]}")
+                    if hasattr(message, "usage"):
+                        print(f"DEBUG: usage = {message.usage}")
+                    if hasattr(message, "usage_by_model"):
+                        print(f"DEBUG: usage_by_model = {message.usage_by_model}")
+
+                    # Try different ways to get usage info
                     usage_by_model = getattr(message, "usage_by_model", None)
+                    usage = getattr(message, "usage", None)
+
+                    # Token usage and cost breakdown
                     if usage_by_model:
-                        print("Token Usage & Cost:")
-                        for model_name, usage in usage_by_model.items():
-                            inp = getattr(usage, "input_tokens", 0)
-                            out = getattr(usage, "output_tokens", 0)
-                            cost = getattr(usage, "cost_usd", None)
-                            cache_read = getattr(usage, "cache_read_tokens", 0)
-                            cache_create = getattr(usage, "cache_creation_tokens", 0)
+                        print("Token Usage & Cost (by model):")
+                        for model_name, model_usage in usage_by_model.items():
+                            inp = getattr(model_usage, "input_tokens", 0)
+                            out = getattr(model_usage, "output_tokens", 0)
+                            cost = getattr(model_usage, "cost_usd", None)
+                            cache_read = getattr(model_usage, "cache_read_tokens", 0)
+                            cache_create = getattr(model_usage, "cache_creation_tokens", 0)
 
                             print(f"  Model: {model_name}")
                             print(f"    Tokens: {inp:,} input / {out:,} output = {inp + out:,} total")
@@ -237,6 +247,18 @@ async def run_review(
                             if cost is not None:
                                 print(f"    Cost:   ${cost:.4f}")
                             print()
+                    elif usage:
+                        # Fallback: use single usage object
+                        print("Token Usage:")
+                        inp = getattr(usage, "input_tokens", 0)
+                        out = getattr(usage, "output_tokens", 0)
+                        cache_read = getattr(usage, "cache_read_tokens", 0)
+                        cache_create = getattr(usage, "cache_creation_tokens", 0)
+
+                        print(f"  Tokens: {inp:,} input / {out:,} output = {inp + out:,} total")
+                        if cache_read or cache_create:
+                            print(f"  Cache:  {cache_read:,} read / {cache_create:,} created")
+                        print()
 
                     # Total cost summary
                     if message.total_cost_usd:
