@@ -34,6 +34,11 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
+try:
+    from anthropic import AnthropicVertex
+except ImportError:
+    AnthropicVertex = None
+
 
 # Determine where skill files are located
 # When installed as package: repo root or installed data directory
@@ -150,7 +155,7 @@ async def run_review(
     vertex_project = os.getenv("ANTHROPIC_VERTEX_PROJECT_ID")
     vertex_region = os.getenv("CLOUD_ML_REGION", "global")
 
-    # Build options with Vertex AI support
+    # Build options
     options_kwargs = {
         "model": model_config["model"],
         "allowed_tools": ["Read", "Bash", "Grep", "Glob", "WebFetch", "Write"],
@@ -162,11 +167,22 @@ async def run_review(
         "max_turns": model_config["max_turns"],
     }
 
-    # Add Vertex AI parameters if enabled
+    # Create Vertex AI client if enabled
     if use_vertex and vertex_project:
         print(f"Using Vertex AI (project: {vertex_project}, region: {vertex_region})")
-        options_kwargs["vertex_project_id"] = vertex_project
-        options_kwargs["vertex_region"] = vertex_region
+        if AnthropicVertex is None:
+            print("Warning: anthropic[vertex] not installed, falling back to Anthropic API")
+        else:
+            try:
+                # Create AnthropicVertex client
+                vertex_client = AnthropicVertex(
+                    project_id=vertex_project,
+                    region=vertex_region,
+                )
+                options_kwargs["client"] = vertex_client
+            except Exception as e:
+                print(f"Warning: Failed to create Vertex AI client: {e}")
+                print("Falling back to Anthropic API")
 
     options = ClaudeAgentOptions(**options_kwargs)
 
