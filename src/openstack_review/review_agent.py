@@ -219,48 +219,50 @@ async def run_review(
                     print("✓ Review complete.")
                     print()
 
-                    # Debug: Check what attributes are available
-                    print(f"DEBUG: Available attributes: {[a for a in dir(message) if not a.startswith('_')]}")
-                    if hasattr(message, "usage"):
-                        print(f"DEBUG: usage = {message.usage}")
-                    if hasattr(message, "usage_by_model"):
-                        print(f"DEBUG: usage_by_model = {message.usage_by_model}")
-
-                    # Try different ways to get usage info
-                    usage_by_model = getattr(message, "usage_by_model", None)
+                    # Get usage data
                     usage = getattr(message, "usage", None)
+                    model_usage = getattr(message, "model_usage", None)
 
-                    # Token usage and cost breakdown
-                    if usage_by_model:
-                        print("Token Usage & Cost (by model):")
-                        for model_name, model_usage in usage_by_model.items():
-                            inp = getattr(model_usage, "input_tokens", 0)
-                            out = getattr(model_usage, "output_tokens", 0)
-                            cost = getattr(model_usage, "cost_usd", None)
-                            cache_read = getattr(model_usage, "cache_read_tokens", 0)
-                            cache_create = getattr(model_usage, "cache_creation_tokens", 0)
-
-                            print(f"  Model: {model_name}")
-                            print(f"    Tokens: {inp:,} input / {out:,} output = {inp + out:,} total")
-                            if cache_read or cache_create:
-                                print(f"    Cache:  {cache_read:,} read / {cache_create:,} created")
-                            if cost is not None:
-                                print(f"    Cost:   ${cost:.4f}")
-                            print()
-                    elif usage:
-                        # Fallback: use single usage object
+                    # Display token usage
+                    if usage and isinstance(usage, dict):
                         print("Token Usage:")
-                        inp = getattr(usage, "input_tokens", 0)
-                        out = getattr(usage, "output_tokens", 0)
-                        cache_read = getattr(usage, "cache_read_tokens", 0)
-                        cache_create = getattr(usage, "cache_creation_tokens", 0)
 
-                        print(f"  Tokens: {inp:,} input / {out:,} output = {inp + out:,} total")
+                        # Input tokens
+                        inp = usage.get("input_tokens", 0)
+                        cache_read = usage.get("cache_read_input_tokens", 0)
+                        cache_create = usage.get("cache_creation_input_tokens", 0)
+
+                        # Output tokens
+                        out = usage.get("output_tokens", 0)
+                        thinking = usage.get("output_tokens_details", {}).get("thinking_tokens", 0)
+
+                        # Calculate totals
+                        total_input = inp + cache_read + cache_create
+                        total_all = total_input + out
+
+                        print(f"  Input:  {inp:,} new")
+                        if cache_read:
+                            print(f"          {cache_read:,} cache read")
+                        if cache_create:
+                            print(f"          {cache_create:,} cache created")
                         if cache_read or cache_create:
-                            print(f"  Cache:  {cache_read:,} read / {cache_create:,} created")
+                            print(f"          {total_input:,} total input")
+
+                        print(f"  Output: {out:,} tokens")
+                        if thinking:
+                            print(f"          ({thinking:,} thinking tokens)")
+
+                        print(f"  Total:  {total_all:,} tokens")
                         print()
 
-                    # Total cost summary
+                    # Per-model breakdown if available
+                    if model_usage:
+                        print("Per-Model Usage:")
+                        for model_name, stats in model_usage.items():
+                            print(f"  {model_name}: {stats}")
+                        print()
+
+                    # Total cost
                     if message.total_cost_usd:
                         print(f"Total Cost: ${message.total_cost_usd:.4f}")
                         print()
