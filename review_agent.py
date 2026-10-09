@@ -34,10 +34,13 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
-from review_config import get_model_config, list_presets
-
 
 SKILL_DIR = Path(__file__).resolve().parent
+
+# Add script directory to Python path to find review_config
+sys.path.insert(0, str(SKILL_DIR))
+
+from review_config import get_model_config, list_presets
 
 
 def fetch_change_metadata(gerrit_host: str, review_number: int) -> dict:
