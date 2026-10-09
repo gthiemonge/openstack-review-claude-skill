@@ -1,0 +1,12 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include SKILL.md
+include reference.md
+include MODEL_CONFIGURATION.md
+include VERTEX_AI_SETUP.md
+include QUICKSTART.md
+include TROUBLESHOOTING.md
+include requirements.txt
+include pyproject.toml
+recursive-include src/openstack_review *.py

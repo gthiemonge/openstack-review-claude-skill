@@ -17,7 +17,28 @@ A comprehensive Claude Code skill for reviewing OpenStack Gerrit changes with au
 
 ## Installation
 
-This skill works with any OpenStack project that uses Gerrit for code review.
+### As a Python Package (Recommended)
+
+```bash
+# Install from source
+git clone https://github.com/yourusername/openstack-review-claude-skill.git
+cd openstack-review-claude-skill
+pip install .
+
+# Or install in development mode
+pip install -e .
+```
+
+After installation, the commands are available globally:
+- `openstack-review` - Run code reviews
+- `detect-models` - Detect available Claude models
+- `gerrit-review` - Gerrit operations (fetch, comments, backport-compare)
+
+See [INSTALL.md](INSTALL.md) for detailed installation instructions.
+
+### As a Claude Code Skill
+
+This also works as a Claude Code skill for any OpenStack project that uses Gerrit for code review.
 
 ### Detect Available Models (First Time Setup)
 

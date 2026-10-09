@@ -29,8 +29,9 @@ MODEL_PRESETS: Dict[str, Dict[str, Any]] = {
 }
 
 # Google Cloud configuration
-# Set these via environment variables or update here
-VERTEX_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
-VERTEX_REGION = os.getenv("GOOGLE_CLOUD_REGION", "global")
+# Set these via environment variables
+VERTEX_PROJECT_ID = os.getenv("ANTHROPIC_VERTEX_PROJECT_ID")
+VERTEX_REGION = os.getenv("CLOUD_ML_REGION", "global")
+USE_VERTEX = os.getenv("CLAUDE_CODE_USE_VERTEX")
 
 DEFAULT_PRESET = "standard"

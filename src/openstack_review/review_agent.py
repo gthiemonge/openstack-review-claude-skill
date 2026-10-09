@@ -35,12 +35,28 @@ from claude_agent_sdk import (
 )
 
 
+# Determine where skill files are located
+# When installed as package: repo root or installed data directory
+# When run from source: same directory as this file
 SKILL_DIR = Path(__file__).resolve().parent
+if not (SKILL_DIR / "SKILL.md").exists():
+    # Not in same dir, try parent directories (installed case)
+    candidate = SKILL_DIR.parent.parent.parent
+    if (candidate / "SKILL.md").exists():
+        SKILL_DIR = candidate
+    else:
+        # Try package data location
+        import importlib.resources
+        try:
+            SKILL_DIR = Path(str(importlib.resources.files("openstack_review")))
+        except:
+            pass  # Fallback to current dir
 
-# Add script directory to Python path to find review_config
-sys.path.insert(0, str(SKILL_DIR))
-
-from review_config import get_model_config, list_presets
+try:
+    from .review_config import get_model_config, list_presets
+except ImportError:
+    # Fallback for standalone script execution
+    from review_config import get_model_config, list_presets
 
 
 def fetch_change_metadata(gerrit_host: str, review_number: int) -> dict:
@@ -120,8 +136,6 @@ async def run_review(
     work_dir: str,
     preset: str = None,
     model_override: str = None,
-    vertex_project: str = None,
-    vertex_region: str = None,
 ) -> None:
     os.makedirs(output_dir, exist_ok=True)
 
@@ -143,13 +157,17 @@ async def run_review(
         "max_turns": model_config["max_turns"],
     }
 
-    # Add Vertex AI configuration if provided
-    if vertex_project:
-        print(f"Using Vertex AI (project: {vertex_project}, region: {vertex_region or 'us-east5'})")
+    # Add Vertex AI configuration from environment variables
+    use_vertex = os.getenv("CLAUDE_CODE_USE_VERTEX")
+    vertex_project = os.getenv("ANTHROPIC_VERTEX_PROJECT_ID")
+    vertex_region = os.getenv("CLOUD_ML_REGION", "global")
+
+    if use_vertex and vertex_project:
+        print(f"Using Vertex AI (project: {vertex_project}, region: {vertex_region})")
         options_dict["anthropic_client_config"] = {
             "vertex": True,
             "vertex_project_id": vertex_project,
-            "vertex_region": vertex_region or "us-east5",
+            "vertex_region": vertex_region,
         }
 
     options = ClaudeAgentOptions(**options_dict)
@@ -281,25 +299,11 @@ def main() -> None:
         action="store_true",
         help="List available presets and exit",
     )
-    parser.add_argument(
-        "--vertex-project",
-        help="Google Cloud project ID for Vertex AI. "
-        "Alternative: set GOOGLE_CLOUD_PROJECT environment variable.",
-    )
-    parser.add_argument(
-        "--vertex-region",
-        default=os.getenv("GOOGLE_CLOUD_REGION", "global"),
-        help="Google Cloud region for Vertex AI (default: global or GOOGLE_CLOUD_REGION env var)",
-    )
     args = parser.parse_args()
 
     if args.list_presets:
         print(list_presets())
         sys.exit(0)
-
-    # Get Vertex AI config from args or environment
-    vertex_project = args.vertex_project or os.getenv("GOOGLE_CLOUD_PROJECT")
-    vertex_region = args.vertex_region
 
     output_dir = os.path.abspath(args.output_dir)
 
@@ -340,8 +344,6 @@ def main() -> None:
             repo_dir,
             preset=args.preset,
             model_override=args.model,
-            vertex_project=vertex_project,
-            vertex_region=vertex_region,
         )
     )
 

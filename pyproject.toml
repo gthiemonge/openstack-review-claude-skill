@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openstack-review"
+version = "2.3.0"
+description = "Automated code review for OpenStack Gerrit changes using Claude AI"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache License 2.0"}
+authors = [
+    {name = "Gregory Thiemonge", email = "gthiemon@redhat.com"}
+]
+keywords = ["openstack", "code-review", "gerrit", "claude", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+dependencies = [
+    "claude-agent-sdk",
+    "anthropic",
+    "google-auth",
+    "google-cloud-aiplatform",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "ruff",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/openstack-review-claude-skill"
+Issues = "https://github.com/yourusername/openstack-review-claude-skill/issues"
+
+[project.scripts]
+openstack-review = "openstack_review.review_agent:main"
+detect-models = "openstack_review.detect_models:main"
+gerrit-review = "openstack_review.gerrit_review:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+openstack_review = ["*.md", "SKILL.md", "reference.md"]

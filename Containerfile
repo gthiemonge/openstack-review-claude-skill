@@ -1,23 +1,32 @@
 FROM python:3.12-slim
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         curl \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir claude-agent-sdk
-
+# Create user
 RUN groupadd -g 1000 claude && useradd -u 1000 -g claude -m claude
 
-COPY SKILL.md gerrit_review.py reference.md review_agent.py \
-     /opt/openstack-review/
+# Copy package files
+WORKDIR /app
+COPY pyproject.toml setup.py MANIFEST.in requirements.txt ./
+COPY src/ ./src/
+COPY SKILL.md reference.md ./
 
-RUN chown -R claude:claude /opt/openstack-review
+# Install package
+RUN pip install --no-cache-dir .
 
-# Run with --userns=keep-id to map host UID into the container
-VOLUME /output
-
+# Switch to non-root user
 USER claude
 
-ENTRYPOINT ["python3", "/opt/openstack-review/review_agent.py", "--output-dir", "/output"]
+# Set working directory for reviews
+WORKDIR /workspace
+
+# Volume for output
+VOLUME /output
+
+# Default entrypoint
+ENTRYPOINT ["openstack-review", "--output-dir", "/output"]

@@ -80,21 +80,18 @@ Full support for Google Cloud's Vertex AI:
 - Automatic detection of Vertex AI models
 - Different model naming conventions (e.g., `claude-3-5-sonnet-v2@20241022`)
 - Google Cloud authentication integration
-- Region selection support
-- Command-line flags: `--vertex-project`, `--vertex-region`
-- Environment variables: `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_REGION`
+- Region selection via environment variables
+- Environment variables: `CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_VERTEX_PROJECT_ID`, `CLOUD_ML_REGION`
 
 **Usage:**
 ```bash
 # Set environment variables
-export GOOGLE_CLOUD_PROJECT=my-project
-export GOOGLE_CLOUD_REGION=us-east5
+export CLAUDE_CODE_USE_VERTEX=1
+export ANTHROPIC_VERTEX_PROJECT_ID=my-project
+export CLOUD_ML_REGION=global
 
 # Run review
-python review_agent.py 970404
-
-# Or use command-line flags
-python review_agent.py 970404 --vertex-project my-project --vertex-region us-east5
+openstack-review 970404
 ```
 
 See [VERTEX_AI_SETUP.md](VERTEX_AI_SETUP.md) for complete setup guide.

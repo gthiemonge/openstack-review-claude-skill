@@ -124,8 +124,9 @@ Option B: **Manual**
 Set environment variables once:
 
 ```bash
-export GOOGLE_CLOUD_PROJECT=your-project-id
-export GOOGLE_CLOUD_REGION=global  # Optional, defaults to global
+export CLAUDE_CODE_USE_VERTEX=1
+export ANTHROPIC_VERTEX_PROJECT_ID=your-project-id
+export CLOUD_ML_REGION=global  # Optional, defaults to global
 ```
 
 Then run reviews normally:
@@ -135,16 +136,7 @@ python review_agent.py 970404
 python review_agent.py 970404 --preset thorough
 ```
 
-### Method 2: Command-Line Flags
-
-Pass Vertex AI configuration each time:
-
-```bash
-python review_agent.py 970404 --vertex-project your-project-id
-python review_agent.py 970404 --vertex-project your-project-id --vertex-region us-central1
-```
-
-### Method 3: Using gcloud Default Project
+### Method 2: Using gcloud Default Project
 
 If you've set a default project with `gcloud config set project`:
 
@@ -153,7 +145,7 @@ If you've set a default project with `gcloud config set project`:
 gcloud config set project your-project-id
 
 # Set env var to use default project
-export GOOGLE_CLOUD_PROJECT=$(gcloud config get-value project)
+export ANTHROPIC_VERTEX_PROJECT_ID=$(gcloud config get-value project)
 
 # Run review
 python review_agent.py 970404
@@ -196,11 +188,11 @@ Check [Vertex AI locations](https://cloud.google.com/vertex-ai/docs/general/loca
 gcloud auth application-default login
 
 # 2. Set project (optional)
-export GOOGLE_CLOUD_PROJECT=my-openstack-project
-export GOOGLE_CLOUD_REGION=global
+export ANTHROPIC_VERTEX_PROJECT_ID=my-openstack-project
+export CLOUD_ML_REGION=global
 
 # 3. Detect and configure models
-python detect_models.py --vertex --project $GOOGLE_CLOUD_PROJECT --update-config
+python detect_models.py --vertex --project $ANTHROPIC_VERTEX_PROJECT_ID --update-config
 
 # 4. Run a review
 python review_agent.py 970404
@@ -241,7 +233,7 @@ gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
 ### "Model not found"
 
 The model isn't available in your region. Try:
-1. Different region: `--vertex-region us-central1`
+1. Different region: `export CLOUD_ML_REGION=us-central1`
 2. Run detection to see available models: `python detect_models.py --vertex --project YOUR_PROJECT`
 
 ### Rate Limiting
@@ -277,8 +269,9 @@ gcloud alpha billing accounts describe YOUR_BILLING_ACCOUNT_ID
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `GOOGLE_CLOUD_PROJECT` | Your Google Cloud project ID | `my-openstack-project` |
-| `GOOGLE_CLOUD_REGION` | Vertex AI region | `global` |
+| `CLAUDE_CODE_USE_VERTEX` | Enable Vertex AI mode | `1` |
+| `ANTHROPIC_VERTEX_PROJECT_ID` | Your Google Cloud project ID | `my-openstack-project` |
+| `CLOUD_ML_REGION` | Vertex AI region | `global` |
 | `REVIEW_PRESET` | Default review preset | `thorough` |
 | `REVIEW_MODEL` | Override model | `claude-3-opus@20240229` |
 

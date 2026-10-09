@@ -31,8 +31,8 @@ export ANTHROPIC_API_KEY=your-api-key-here
 gcloud auth application-default login
 
 # Set project (optional, can also use --vertex-project flag)
-export GOOGLE_CLOUD_PROJECT=your-project-id
-export GOOGLE_CLOUD_REGION=global  # Optional, defaults to global (use your org's required region)
+export ANTHROPIC_VERTEX_PROJECT_ID=your-project-id
+export CLOUD_ML_REGION=global  # Optional, defaults to global (use your org's required region)
 ```
 
 See [VERTEX_AI_SETUP.md](VERTEX_AI_SETUP.md) for detailed Vertex AI setup.

@@ -11,7 +11,7 @@ from typing import Dict, Any
 # Default model presets - CUSTOMIZE THESE for your enterprise plan
 MODEL_PRESETS: Dict[str, Dict[str, Any]] = {
     "quick": {
-        "model": "claude-sonnet-4.6",
+        "model": "claude-haiku-4.5",
         "max_turns": 30,
         "description": "Fast review for minor changes",
     },
