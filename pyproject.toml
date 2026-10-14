@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openstack-review"
-version = "2.3.0"
-description = "Automated code review for OpenStack Gerrit changes using Claude AI"
+version = "2.4.0"
+description = "Automated code review for OpenStack Gerrit changes using Claude or OpenAI"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "Apache License 2.0"}
 authors = [
     {name = "Gregory Thiemonge", email = "gthiemon@redhat.com"}
 ]
-keywords = ["openstack", "code-review", "gerrit", "claude", "ai"]
+keywords = ["openstack", "code-review", "gerrit", "claude", "openai", "ai"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -29,11 +29,22 @@ classifiers = [
 dependencies = [
     "claude-agent-sdk",
     "anthropic",
+    "openai",
     "google-auth",
     "google-cloud-aiplatform",
 ]
 
 [project.optional-dependencies]
+# Install only the provider you need, e.g. pip install openstack-review[openai]
+claude = [
+    "claude-agent-sdk",
+    "anthropic",
+    "google-auth",
+    "google-cloud-aiplatform",
+]
+openai = [
+    "openai",
+]
 dev = [
     "pytest",
     "black",

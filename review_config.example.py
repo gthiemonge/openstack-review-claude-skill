@@ -1,11 +1,19 @@
 """
-Example configurations for different enterprise plans.
+Example configurations for different enterprise plans / accounts.
 
-Copy the relevant section to review_config.py and customize as needed.
+The live review_config.py groups presets by provider:
+
+    PRESETS = {
+        "claude": { "quick": {...}, "standard": {...}, "thorough": {...} },
+        "openai": { "quick": {...}, "standard": {...}, "thorough": {...} },
+    }
+
+Each dict below is a set of {preset: {...}} entries you can drop in as
+PRESETS["claude"] (or PRESETS["openai"] for the OpenAI examples).
 """
 
 # ═══════════════════════════════════════════════════════════════════
-# Example 1: Latest models (default)
+# Example 1: Latest Claude models (default) -> PRESETS["claude"]
 # ═══════════════════════════════════════════════════════════════════
 
 MODEL_PRESETS_LATEST = {
@@ -152,9 +160,34 @@ MODEL_PRESETS_COST_OPTIMIZED = {
 }
 
 # ═══════════════════════════════════════════════════════════════════
+# Example 7: OpenAI account -> PRESETS["openai"]
+# (model names are account-dependent — adjust to what you have access to)
+# ═══════════════════════════════════════════════════════════════════
+
+MODEL_PRESETS_OPENAI = {
+    "quick": {
+        "model": "gpt-5-mini",
+        "max_turns": 30,
+        "description": "Fast review for minor changes",
+    },
+    "standard": {
+        "model": "gpt-5",
+        "max_turns": 50,
+        "description": "Standard comprehensive review",
+    },
+    "thorough": {
+        "model": "gpt-5",
+        "max_turns": 75,
+        "description": "Deep review for critical changes",
+    },
+}
+
+# ═══════════════════════════════════════════════════════════════════
 # To use one of these configurations:
 # 1. Copy the desired MODEL_PRESETS_* dict above
 # 2. Open review_config.py
-# 3. Replace MODEL_PRESETS = { ... } with your chosen configuration
-# 4. Adjust DEFAULT_PRESET if needed
+# 3. Assign it to the relevant provider, e.g.:
+#        PRESETS["claude"] = MODEL_PRESETS_LATEST
+#        PRESETS["openai"] = MODEL_PRESETS_OPENAI
+# 4. Adjust DEFAULT_PROVIDER / DEFAULT_PRESET if needed
 # ═══════════════════════════════════════════════════════════════════

@@ -1,11 +1,12 @@
 """
 OpenStack Review - Automated code review for OpenStack Gerrit changes.
 
-A comprehensive Claude-powered skill for reviewing OpenStack Gerrit changes
-with automated checks and best practices enforcement.
+A comprehensive AI-powered skill for reviewing OpenStack Gerrit changes with
+automated checks and best practices enforcement. Supports multiple providers
+(Claude via the Claude Agent SDK, OpenAI via the Responses API).
 """
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 __author__ = "Gregory Thiemonge"
 __license__ = "Apache License 2.0"
 

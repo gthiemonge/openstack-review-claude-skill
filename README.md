@@ -112,9 +112,33 @@ python review_agent.py 970404 --preset thorough
 # Use specific model
 python review_agent.py 970404 --model claude-opus-5
 
-# List available presets
+# List available presets (grouped by provider)
 python review_agent.py --list-presets
 ```
+
+### Choosing an AI Provider (Claude or OpenAI)
+
+The agent supports two providers. **claude** (via the Claude Agent SDK) is the
+default; **openai** (via the OpenAI Responses API) is opt-in.
+
+```bash
+# Claude (default) — needs ANTHROPIC_API_KEY (or Vertex AI env vars)
+export ANTHROPIC_API_KEY=your-api-key
+python review_agent.py 970404
+
+# OpenAI — needs OPENAI_API_KEY
+export OPENAI_API_KEY=your-api-key
+python review_agent.py 970404 --provider openai
+python review_agent.py 970404 --provider openai --preset thorough
+python review_agent.py 970404 --provider openai --model gpt-5
+
+# OpenAI against a custom endpoint (Azure / OpenAI-compatible / proxy / self-hosted)
+python review_agent.py 970404 --provider openai --openai-base-url https://your-endpoint/v1
+```
+
+Equivalent environment variables: `REVIEW_PROVIDER=openai` and
+`OPENAI_BASE_URL=https://your-endpoint/v1`. Install only the provider you need:
+`pip install openstack-review[openai]` or `pip install openstack-review[claude]`.
 
 See [MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md) for detailed model configuration options, especially for enterprise plans with different model availability.
 

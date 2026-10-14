@@ -1,6 +1,26 @@
 # Model Configuration Guide
 
-The OpenStack review agent supports multiple Claude models through a flexible preset system. This is designed to work with enterprise plans that may have different model availability.
+The OpenStack review agent supports multiple AI providers and models through a flexible preset system. This is designed to work with enterprise plans / accounts that may have different model availability.
+
+## Providers
+
+Two providers are available:
+
+- **claude** (default) — via the Claude Agent SDK. Needs `ANTHROPIC_API_KEY`, or Vertex AI env vars (`CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_VERTEX_PROJECT_ID`, `CLOUD_ML_REGION`).
+- **openai** — via the OpenAI Responses API. Needs `OPENAI_API_KEY`. Optionally point at a custom endpoint (Azure / OpenAI-compatible / proxy / self-hosted) with `--openai-base-url` or `OPENAI_BASE_URL`.
+
+Select with `--provider {claude,openai}` or `REVIEW_PROVIDER`:
+
+```bash
+python review_agent.py 970404 --provider openai
+python review_agent.py 970404 --provider openai --openai-base-url https://your-endpoint/v1
+```
+
+> **Preset structure note:** presets are grouped by provider in `review_config.py`:
+> `PRESETS[provider][preset]` (e.g. `PRESETS["claude"]["standard"]`), with a
+> top-level `DEFAULT_PROVIDER`. The flat `MODEL_PRESETS = { ... }` snippets shown
+> below illustrate the per-provider dict — assign them to `PRESETS["claude"]` or
+> `PRESETS["openai"]` rather than to a bare `MODEL_PRESETS` variable.
 
 ## Detecting Available Models
 

@@ -1,16 +1,20 @@
 """
 Configuration for OpenStack review agent with Vertex AI.
 
-This is an example configuration for Vertex AI (Google Cloud).
-Copy the MODEL_PRESETS section to review_config.py if you're using Vertex AI.
+This is an example configuration for Vertex AI (Google Cloud), which is used by
+the `claude` provider.
+
+To apply: copy the dict below into review_config.py as PRESETS["claude"]
+(the live config groups presets by provider: PRESETS[provider][preset]).
 """
 
 import os
 from typing import Dict, Any
 
-# Vertex AI model presets
-# These use Vertex AI model IDs (different from Anthropic API)
-MODEL_PRESETS: Dict[str, Dict[str, Any]] = {
+# Vertex AI model presets for the claude provider.
+# These use Vertex AI model IDs (different from Anthropic API).
+# In review_config.py this becomes:  PRESETS["claude"] = CLAUDE_VERTEX_PRESETS
+CLAUDE_VERTEX_PRESETS: Dict[str, Dict[str, Any]] = {
     "quick": {
         "model": "claude-haiku-4.5",
         "max_turns": 25,

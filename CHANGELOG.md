@@ -1,5 +1,41 @@
 # OpenStack Review Skill - Changelog
 
+## Version 2.4 - Multi-Provider Support (Claude + OpenAI)
+
+### New Features
+
+**Multiple AI providers** - The review agent now supports two providers behind a
+common abstraction (`src/openstack_review/providers/`):
+
+- **claude** - via the Claude Agent SDK (unchanged behavior, still the default).
+- **openai** - via the OpenAI Responses API, with a hand-written agentic loop and
+  local tool implementations (Read/Write/Bash/Grep/Glob/WebFetch) that mirror the
+  Claude Agent SDK's built-in tools, so the same `SKILL.md` workflow runs on both.
+
+**Selecting a provider:**
+```bash
+# Claude (default)
+openstack-review 997182
+
+# OpenAI
+export OPENAI_API_KEY=your-api-key
+openstack-review --provider 997182 openai      # or REVIEW_PROVIDER=openai
+```
+
+**Custom OpenAI endpoint** - Point OpenAI at Azure / an OpenAI-compatible /
+proxy / self-hosted endpoint:
+```bash
+openstack-review --provider openai --openai-base-url https://your-endpoint/v1 997182
+# or: export OPENAI_BASE_URL=https://your-endpoint/v1
+```
+
+**Configuration changes:**
+- `review_config.py` presets are now organized by provider (`PRESETS[provider][preset]`)
+  with a new `DEFAULT_PROVIDER` setting.
+- New `--provider` / `REVIEW_PROVIDER` and `--openai-base-url` / `OPENAI_BASE_URL`.
+- Provider SDKs are imported lazily — install only the one you use
+  (`pip install openstack-review[openai]` or `[claude]`).
+
 ## Version 2.3 - Claude 4.x Model Support
 
 ### New Features

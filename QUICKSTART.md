@@ -69,16 +69,29 @@ This will:
 
 ### 4. Customize Configuration (Optional)
 
-Edit `review_config.py` to match your preferences:
+Edit `review_config.py` to match your preferences. Presets are grouped by
+provider (`PRESETS[provider][preset]`):
 
 ```python
-MODEL_PRESETS = {
-    "quick": {
-        "model": "claude-sonnet-4-5",
-        "max_turns": 30,
-        "description": "Fast review for minor changes",
+DEFAULT_PROVIDER = "claude"
+
+PRESETS = {
+    "claude": {
+        "quick": {
+            "model": "claude-sonnet-4-5",
+            "max_turns": 30,
+            "description": "Fast review for minor changes",
+        },
+        # ... more presets
     },
-    # ... more presets
+    "openai": {
+        "standard": {
+            "model": "gpt-5",
+            "max_turns": 50,
+            "description": "Standard comprehensive review",
+        },
+        # ... more presets
+    },
 }
 ```
 
@@ -108,6 +121,20 @@ python review_agent.py 970404 --preset thorough
 ```bash
 # Use specific model
 python review_agent.py 970404 --model claude-opus-5
+```
+
+### Choose a Provider (Claude or OpenAI)
+
+```bash
+# Claude (default) — needs ANTHROPIC_API_KEY
+python review_agent.py 970404
+
+# OpenAI — needs OPENAI_API_KEY
+export OPENAI_API_KEY=your-api-key
+python review_agent.py 970404 --provider openai
+
+# OpenAI against a custom endpoint (Azure / OpenAI-compatible / proxy)
+python review_agent.py 970404 --provider openai --openai-base-url https://your-endpoint/v1
 ```
 
 ### Check Available Presets

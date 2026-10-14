@@ -2,18 +2,28 @@
 """
 OpenStack Gerrit Code Review Agent
 
-Uses the Claude Agent SDK with the openstack-review skill to perform
-automated code reviews of OpenStack Gerrit changes.
+Performs automated code reviews of OpenStack Gerrit changes using the
+openstack-review skill. Supports multiple AI providers:
+  - claude  (via the Claude Agent SDK)
+  - openai  (via the OpenAI Responses API)
 
 The agent clones the project from Gerrit automatically — no pre-existing
 checkout is needed.
 
 Usage:
-    python review_agent.py <review-number> [--output-dir DIR] [--gerrit-host HOST]
+    python review_agent.py <review-number> [--provider claude|openai]
+        [--output-dir DIR] [--gerrit-host HOST]
 
 Requirements:
+    # Claude provider:
     pip install claude-agent-sdk
     export ANTHROPIC_API_KEY=your-api-key
+
+    # OpenAI provider:
+    pip install openai
+    export OPENAI_API_KEY=your-api-key
+    # optional custom endpoint:
+    export OPENAI_BASE_URL=https://your-endpoint/v1
 """
 
 import argparse
@@ -25,14 +35,6 @@ import sys
 import tempfile
 import urllib.request
 from pathlib import Path
-
-from claude_agent_sdk import (
-    query,
-    ClaudeAgentOptions,
-    ResultMessage,
-    AssistantMessage,
-    UserMessage,
-)
 
 
 # Determine where skill files are located
@@ -54,9 +56,11 @@ if not (SKILL_DIR / "SKILL.md").exists():
 
 try:
     from .review_config import get_model_config, list_presets
+    from .providers import get_provider, print_usage_summary
 except ImportError:
     # Fallback for standalone script execution
     from review_config import get_model_config, list_presets
+    from providers import get_provider, print_usage_summary
 
 
 def fetch_change_metadata(gerrit_host: str, review_number: int) -> dict:
@@ -134,33 +138,31 @@ async def run_review(
     output_dir: str,
     gerrit_host: str,
     work_dir: str,
+    provider: str = None,
     preset: str = None,
     model_override: str = None,
+    openai_base_url: str = None,
+    max_turns_override: int = None,
 ) -> None:
     os.makedirs(output_dir, exist_ok=True)
 
-    # Get model configuration based on preset or override
-    model_config = get_model_config(preset=preset, model_override=model_override)
-
-    print(f"Using model: {model_config['model']} (from {model_config['source']})")
-    print(f"Max turns: {model_config['max_turns']}")
-
-    # Note: Vertex AI auto-detected from environment variables:
-    # - CLAUDE_CODE_USE_VERTEX
-    # - ANTHROPIC_VERTEX_PROJECT_ID
-    # - CLOUD_ML_REGION
-    # The Agent SDK automatically picks these up - no explicit config needed
-
-    options = ClaudeAgentOptions(
-        model=model_config["model"],
-        allowed_tools=["Read", "Bash", "Grep", "Glob", "WebFetch", "Write"],
-        permission_mode="acceptEdits",
-        cwd=work_dir,
-        add_dirs=[output_dir, str(SKILL_DIR)],
-        env={"SKILL_DIR": str(SKILL_DIR)},
-        system_prompt=build_system_prompt(review_number, output_dir, gerrit_host),
-        max_turns=model_config["max_turns"],
+    # Get provider + model configuration based on preset or override
+    model_config = get_model_config(
+        provider=provider, preset=preset, model_override=model_override
     )
+
+    # An explicit --max-turns wins over the preset/model default.
+    if max_turns_override is not None:
+        model_config["max_turns"] = max_turns_override
+
+    print(f"Using provider: {model_config['provider']}")
+    print(f"Using model: {model_config['model']} (from {model_config['source']})")
+    max_turns_source = "--max-turns" if max_turns_override is not None else "config"
+    print(f"Max turns: {model_config['max_turns']} (from {max_turns_source})")
+
+    # Note (claude provider): Vertex AI is auto-detected from environment
+    # variables (CLAUDE_CODE_USE_VERTEX, ANTHROPIC_VERTEX_PROJECT_ID,
+    # CLOUD_ML_REGION) by the Agent SDK — no explicit config needed here.
 
     report_path = Path(output_dir) / f"REVIEW_{review_number}.md"
     prompt = (
@@ -171,137 +173,25 @@ async def run_review(
         f"{report_path}."
     )
 
+    system_prompt = build_system_prompt(review_number, output_dir, gerrit_host)
+
     print("-" * 60)
 
     try:
-        async for message in query(prompt=prompt, options=options):
-            if isinstance(message, AssistantMessage):
-                for block in message.content:
-                    if hasattr(block, "text") and block.text:
-                        print(block.text)
-                    elif hasattr(block, "name"):
-                        inputs = getattr(block, "input", {}) or {}
-                        if block.name == "Bash":
-                            cmd = inputs.get("command", "")
-                            desc = inputs.get("description", "")
-                            label = desc if desc else cmd[:120]
-                            print(f"  [Bash] {label}")
-                        elif block.name == "Read":
-                            print(f"  [Read] {inputs.get('file_path', '?')}")
-                        elif block.name == "Write":
-                            print(f"  [Write] {inputs.get('file_path', '?')}")
-                        elif block.name == "Grep":
-                            print(f"  [Grep] {inputs.get('pattern', '?')}")
-                        else:
-                            print(f"  [{block.name}]")
-
-            elif isinstance(message, UserMessage):
-                for block in message.content:
-                    text = ""
-                    if hasattr(block, "text"):
-                        text = block.text or ""
-                    elif hasattr(block, "content"):
-                        text = block.content if isinstance(block.content, str) else ""
-                    if text:
-                        lines = text.strip().split("\n")
-                        if len(lines) <= 20:
-                            for line in lines:
-                                print(f"    {line}")
-                        else:
-                            for line in lines[:10]:
-                                print(f"    {line}")
-                            print(f"    ... ({len(lines) - 10} more lines)")
-                        print()
-
-            elif isinstance(message, ResultMessage):
-                print("-" * 60)
-                if message.subtype == "success":
-                    print("✓ Review complete.")
-                    print()
-
-                    # Get usage data
-                    usage = getattr(message, "usage", None)
-                    model_usage = getattr(message, "model_usage", None)
-
-                    # Display token usage
-                    if usage and isinstance(usage, dict):
-                        print("Token Usage:")
-
-                        # Input tokens
-                        inp = usage.get("input_tokens", 0)
-                        cache_read = usage.get("cache_read_input_tokens", 0)
-                        cache_create = usage.get("cache_creation_input_tokens", 0)
-
-                        # Output tokens
-                        out = usage.get("output_tokens", 0)
-                        thinking = usage.get("output_tokens_details", {}).get("thinking_tokens", 0)
-
-                        # Calculate totals
-                        total_input = inp + cache_read + cache_create
-                        total_all = total_input + out
-
-                        print(f"  Input:  {inp:,} new")
-                        if cache_read:
-                            print(f"          {cache_read:,} cache read")
-                        if cache_create:
-                            print(f"          {cache_create:,} cache created")
-                        if cache_read or cache_create:
-                            print(f"          {total_input:,} total input")
-
-                        print(f"  Output: {out:,} tokens")
-                        if thinking:
-                            print(f"          ({thinking:,} thinking tokens)")
-
-                        print(f"  Total:  {total_all:,} tokens")
-                        print()
-
-                    # Per-model breakdown if available
-                    if model_usage:
-                        print("Per-Model Breakdown:")
-                        for model_name, stats in model_usage.items():
-                            if isinstance(stats, dict):
-                                print(f"  Model: {model_name}")
-
-                                # Input tokens
-                                model_inp = stats.get("inputTokens", 0)
-                                model_cache_read = stats.get("cacheReadInputTokens", 0)
-                                model_cache_create = stats.get("cacheCreationInputTokens", 0)
-
-                                # Output tokens
-                                model_out = stats.get("outputTokens", 0)
-                                model_thinking = stats.get("thinkingTokens", 0)
-
-                                # Cost and provider
-                                model_cost = stats.get("costUSD", 0)
-                                provider = stats.get("provider", "")
-
-                                print(f"    Provider:    {provider}")
-                                print(f"    Input:       {model_inp:,} new / {model_cache_read:,} cache read / {model_cache_create:,} cache created")
-                                print(f"    Output:      {model_out:,} tokens", end="")
-                                if model_thinking:
-                                    print(f" ({model_thinking:,} thinking)")
-                                else:
-                                    print()
-                                print(f"    Cost:        ${model_cost:.4f}")
-                            else:
-                                print(f"  {model_name}: {stats}")
-                        print()
-
-                    # Total cost
-                    if message.total_cost_usd:
-                        print(f"Total Cost: ${message.total_cost_usd:.4f}")
-                        print()
-
-                    if report_path.exists():
-                        print(f"Report saved to: {report_path}")
-                elif message.subtype == "error_max_turns":
-                    print(
-                        "Hit turn limit before finishing. "
-                        f"Resume session {message.session_id} to continue."
-                    )
-                else:
-                    print(f"Stopped: {message.subtype}")
-
+        review_provider = get_provider(
+            model_config["provider"], openai_base_url=openai_base_url
+        )
+        result = await review_provider.run_review(
+            model=model_config["model"],
+            max_turns=model_config["max_turns"],
+            system_prompt=system_prompt,
+            prompt=prompt,
+            work_dir=work_dir,
+            output_dir=output_dir,
+            skill_dir=SKILL_DIR,
+            report_path=report_path,
+        )
+        print_usage_summary(result, report_path)
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
@@ -325,6 +215,18 @@ def main() -> None:
         help="Gerrit hostname (default: review.opendev.org)",
     )
     parser.add_argument(
+        "--provider",
+        choices=["claude", "openai"],
+        help="AI provider to use (claude/openai). "
+        "Override with REVIEW_PROVIDER environment variable. Default: claude.",
+    )
+    parser.add_argument(
+        "--openai-base-url",
+        help="Custom OpenAI endpoint base URL (Azure / OpenAI-compatible / "
+        "proxy / self-hosted). Override with OPENAI_BASE_URL environment "
+        "variable. Only used with --provider openai.",
+    )
+    parser.add_argument(
         "--preset",
         choices=["quick", "standard", "thorough"],
         help="Review preset (quick/standard/thorough). See presets below. "
@@ -332,9 +234,15 @@ def main() -> None:
     )
     parser.add_argument(
         "--model",
-        help="Specific Claude model to use (overrides preset). "
-        "Examples: claude-sonnet-5, claude-opus-5, claude-sonnet-4-5. "
+        help="Specific model to use (overrides preset). "
+        "Examples: claude-sonnet-5, claude-opus-5, gpt-5, gpt-5-mini. "
         "Override with REVIEW_MODEL environment variable.",
+    )
+    parser.add_argument(
+        "--max-turns",
+        type=int,
+        help="Maximum number of agent turns (overrides the preset/model "
+        "default).",
     )
     parser.add_argument(
         "--list-presets",
@@ -384,8 +292,11 @@ def main() -> None:
             output_dir,
             args.gerrit_host,
             repo_dir,
+            provider=args.provider,
             preset=args.preset,
             model_override=args.model,
+            openai_base_url=args.openai_base_url,
+            max_turns_override=args.max_turns,
         )
     )
 
