@@ -29,10 +29,19 @@ openstack-review --provider openai --openai-base-url https://your-endpoint/v1 99
 # or: export OPENAI_BASE_URL=https://your-endpoint/v1
 ```
 
+**OpenAI cost reporting** - The OpenAI API doesn't return a USD cost, so the
+agent now derives it:
+- If the endpoint is an OpenAI-compatible gateway that reports cost in a response
+  header (e.g. litellm's `x-litellm-response-cost`), that value is used directly.
+- Otherwise, cost is computed from token usage against the `OPENAI_PRICING` table
+  in `review_config.py`, or from `--openai-price-input` / `--openai-price-output`
+  (`OPENAI_PRICE_INPUT` / `OPENAI_PRICE_OUTPUT`) overrides.
+
 **Configuration changes:**
 - `review_config.py` presets are now organized by provider (`PRESETS[provider][preset]`)
-  with a new `DEFAULT_PROVIDER` setting.
-- New `--provider` / `REVIEW_PROVIDER` and `--openai-base-url` / `OPENAI_BASE_URL`.
+  with a new `DEFAULT_PROVIDER` setting, plus an `OPENAI_PRICING` table.
+- New `--provider` / `REVIEW_PROVIDER`, `--openai-base-url` / `OPENAI_BASE_URL`,
+  `--max-turns`, and `--openai-price-input` / `--openai-price-output`.
 - Provider SDKs are imported lazily — install only the one you use
   (`pip install openstack-review[openai]` or `[claude]`).
 

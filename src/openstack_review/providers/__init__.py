@@ -10,12 +10,20 @@ from .base import ReviewProvider, ReviewResult, print_usage_summary
 __all__ = ["ReviewProvider", "ReviewResult", "print_usage_summary", "get_provider"]
 
 
-def get_provider(name: str, *, openai_base_url: str = None) -> ReviewProvider:
+def get_provider(
+    name: str,
+    *,
+    openai_base_url: str = None,
+    openai_price_input: float = None,
+    openai_price_output: float = None,
+) -> ReviewProvider:
     """Return a provider instance for the given name.
 
     Args:
         name: "claude" or "openai".
         openai_base_url: optional custom endpoint for the openai provider.
+        openai_price_input: optional USD-per-1M-token input rate override.
+        openai_price_output: optional USD-per-1M-token output rate override.
     """
     key = (name or "").lower()
     if key == "claude":
@@ -25,6 +33,10 @@ def get_provider(name: str, *, openai_base_url: str = None) -> ReviewProvider:
     if key == "openai":
         from .openai_provider import OpenAIProvider
 
-        return OpenAIProvider(base_url=openai_base_url)
+        return OpenAIProvider(
+            base_url=openai_base_url,
+            price_input=openai_price_input,
+            price_output=openai_price_output,
+        )
 
     raise ValueError(f"Unknown provider '{name}'. Available: claude, openai")

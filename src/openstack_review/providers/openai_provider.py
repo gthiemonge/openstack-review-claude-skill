@@ -23,9 +23,14 @@ from . import tools as _tools
 class OpenAIProvider(ReviewProvider):
     name = "openai"
 
-    def __init__(self, base_url: str = None):
+    def __init__(self, base_url: str = None, price_input: float = None,
+                 price_output: float = None):
         # Resolution order: explicit arg -> env -> official default (None).
         self.base_url = base_url or os.getenv("OPENAI_BASE_URL") or None
+        # Per-1M-token price overrides (USD). None means fall back to the
+        # OPENAI_PRICING table in review_config for the model being used.
+        self.price_input = _first_float(price_input, os.getenv("OPENAI_PRICE_INPUT"))
+        self.price_output = _first_float(price_output, os.getenv("OPENAI_PRICE_OUTPUT"))
 
     async def run_review(
         self,
@@ -74,6 +79,11 @@ class OpenAIProvider(ReviewProvider):
         result = ReviewResult(success=False, provider=self.name)
         total_input = 0
         total_output = 0
+        # Cost reported by an OpenAI-compatible gateway (e.g. litellm sends it
+        # in the x-litellm-response-cost response header). When present this is
+        # authoritative; otherwise we fall back to the local pricing table.
+        api_cost = 0.0
+        api_cost_seen = False
 
         # We keep the full conversation client-side and resend it every turn,
         # rather than chaining with previous_response_id. Server-side response
@@ -84,12 +94,20 @@ class OpenAIProvider(ReviewProvider):
         input_items = [{"role": "user", "content": prompt}]
 
         for turn in range(max_turns):
-            response = client.responses.create(
+            # Use with_raw_response so we can read response headers (gateways
+            # like litellm return the per-request cost there).
+            raw = client.responses.with_raw_response.create(
                 model=model,
                 instructions=system_prompt,
                 input=input_items,
                 tools=_tools.OPENAI_TOOL_SCHEMAS,
             )
+            response = raw.parse()
+
+            turn_cost = _header_cost(raw)
+            if turn_cost is not None:
+                api_cost += turn_cost
+                api_cost_seen = True
 
             usage = getattr(response, "usage", None)
             if usage is not None:
@@ -151,7 +169,66 @@ class OpenAIProvider(ReviewProvider):
             "input_tokens": total_input,
             "output_tokens": total_output,
         }
+
+        # Cost: prefer what the gateway reported (authoritative); otherwise
+        # compute from token usage using rate overrides or the pricing table.
+        if api_cost_seen:
+            result.total_cost_usd = api_cost
+        else:
+            rates = self._resolve_rates(model)
+            if rates is not None:
+                result.total_cost_usd = (
+                    total_input * rates["input"] + total_output * rates["output"]
+                ) / 1_000_000
+            else:
+                result.notes.append(
+                    f"Cost: unknown — no cost reported for model '{model}'."
+                )
+
         return result
+
+    def _resolve_rates(self, model: str) -> dict:
+        """Return {'input', 'output'} USD-per-1M-token rates, or None."""
+        if self.price_input is not None and self.price_output is not None:
+            return {"input": self.price_input, "output": self.price_output}
+
+        try:
+            from ..review_config import get_openai_pricing
+        except ImportError:
+            from review_config import get_openai_pricing
+        return get_openai_pricing(model)
+
+
+# Response headers that OpenAI-compatible gateways use to report per-request
+# cost in USD. litellm uses the first; others are accepted defensively.
+_COST_HEADERS = ("x-litellm-response-cost", "x-response-cost", "x-cost-usd")
+
+
+def _header_cost(raw) -> float:
+    """Extract a USD cost from an OpenAI SDK raw response's headers, or None."""
+    headers = getattr(raw, "headers", None)
+    if not headers:
+        return None
+    for key in _COST_HEADERS:
+        value = headers.get(key)
+        if value not in (None, ""):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+def _first_float(*values) -> float:
+    """Return the first value that can be parsed as a float, else None."""
+    for v in values:
+        if v is None or v == "":
+            continue
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 def _message_text(item) -> str:

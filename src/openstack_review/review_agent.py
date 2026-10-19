@@ -142,6 +142,8 @@ async def run_review(
     preset: str = None,
     model_override: str = None,
     openai_base_url: str = None,
+    openai_price_input: float = None,
+    openai_price_output: float = None,
     max_turns_override: int = None,
 ) -> None:
     os.makedirs(output_dir, exist_ok=True)
@@ -179,7 +181,10 @@ async def run_review(
 
     try:
         review_provider = get_provider(
-            model_config["provider"], openai_base_url=openai_base_url
+            model_config["provider"],
+            openai_base_url=openai_base_url,
+            openai_price_input=openai_price_input,
+            openai_price_output=openai_price_output,
         )
         result = await review_provider.run_review(
             model=model_config["model"],
@@ -245,6 +250,20 @@ def main() -> None:
         "default).",
     )
     parser.add_argument(
+        "--openai-price-input",
+        type=float,
+        help="OpenAI input price in USD per 1M tokens (overrides the "
+        "OPENAI_PRICING table). Override with OPENAI_PRICE_INPUT env var. "
+        "Only used with --provider openai.",
+    )
+    parser.add_argument(
+        "--openai-price-output",
+        type=float,
+        help="OpenAI output price in USD per 1M tokens (overrides the "
+        "OPENAI_PRICING table). Override with OPENAI_PRICE_OUTPUT env var. "
+        "Only used with --provider openai.",
+    )
+    parser.add_argument(
         "--list-presets",
         action="store_true",
         help="List available presets and exit",
@@ -296,6 +315,8 @@ def main() -> None:
             preset=args.preset,
             model_override=args.model,
             openai_base_url=args.openai_base_url,
+            openai_price_input=args.openai_price_input,
+            openai_price_output=args.openai_price_output,
             max_turns_override=args.max_turns,
         )
     )

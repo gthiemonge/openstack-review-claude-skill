@@ -55,6 +55,26 @@ PRESETS: Dict[str, Dict[str, Dict[str, Any]]] = {
 # Default preset to use (within the selected provider).
 DEFAULT_PRESET = "standard"
 
+# OpenAI (and OpenAI-compatible) pricing, in USD per 1M tokens.
+# The OpenAI/Responses API does not return a cost, so it is computed from token
+# usage against this table. These are EXAMPLES — customize them for your
+# account/provider rates. Models not listed here report no cost.
+#
+# You can also override rates at runtime without editing this file:
+#   --openai-price-input / --openai-price-output  (USD per 1M tokens), or
+#   OPENAI_PRICE_INPUT / OPENAI_PRICE_OUTPUT environment variables.
+OPENAI_PRICING = {
+    "gpt-5": {"input": 1.25, "output": 10.00},
+    "gpt-5-mini": {"input": 0.25, "output": 2.00},
+    # Example for a custom endpoint model:
+    # "rits/zai-org/glm-5-3": {"input": 0.60, "output": 2.20},
+}
+
+
+def get_openai_pricing(model: str) -> dict:
+    """Return {'input', 'output'} USD-per-1M-token rates for a model, or None."""
+    return OPENAI_PRICING.get(model)
+
 # Environment variable overrides allow per-review customization without editing
 # this file:
 #   REVIEW_PROVIDER=openai python review_agent.py 997182
