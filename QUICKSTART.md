@@ -183,15 +183,19 @@ Set defaults without command-line flags:
 
 ```bash
 # Set default preset
-export REVIEW_PRESET=thorough
+export AGENT_PRESET=thorough
 python review_agent.py 970404
 
 # Set default model
-export REVIEW_MODEL=claude-opus-5
+export AGENT_MODEL=claude-opus-5
+python review_agent.py 970404
+
+# Set model reasoning effort
+export AGENT_EFFORT=high
 python review_agent.py 970404
 
 # Combine with other settings
-export REVIEW_PRESET=standard
+export AGENT_PRESET=standard
 export GERRIT_HOST=review.example.com
 python review_agent.py 970404
 ```

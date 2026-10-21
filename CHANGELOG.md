@@ -1,5 +1,11 @@
 # OpenStack Review Skill - Changelog
 
+## Unreleased
+
+- Renamed the agent configuration environment variables from `REVIEW_*` to
+  `AGENT_*` (`AGENT_PROVIDER`, `AGENT_PRESET`, and `AGENT_MODEL`).
+- Added `--effort` and `AGENT_EFFORT` to set model reasoning effort.
+
 ## Version 2.4 - Multi-Provider Support (Claude + OpenAI)
 
 ### New Features

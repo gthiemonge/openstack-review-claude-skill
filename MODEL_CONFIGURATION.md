@@ -9,7 +9,7 @@ Two providers are available:
 - **claude** (default) — via the Claude Agent SDK. Needs `ANTHROPIC_API_KEY`, or Vertex AI env vars (`CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_VERTEX_PROJECT_ID`, `CLOUD_ML_REGION`).
 - **openai** — via the OpenAI Responses API. Needs `OPENAI_API_KEY`. Optionally point at a custom endpoint (Azure / OpenAI-compatible / proxy / self-hosted) with `--openai-base-url` or `OPENAI_BASE_URL`.
 
-Select with `--provider {claude,openai}` or `REVIEW_PROVIDER`:
+Select with `--provider {claude,openai}` or `AGENT_PROVIDER`:
 
 ```bash
 python review_agent.py 970404 --provider openai
@@ -101,7 +101,11 @@ python review_agent.py 997182 --preset thorough
 python review_agent.py 997182 --model claude-sonnet-4-5
 
 # Via environment variable
-REVIEW_MODEL=claude-opus-5 python review_agent.py 997182
+AGENT_MODEL=claude-opus-5 python review_agent.py 997182
+
+# Set model reasoning effort (provider/model support varies)
+python review_agent.py 997182 --effort high
+AGENT_EFFORT=high python review_agent.py 997182
 ```
 
 ### List Available Presets
@@ -116,9 +120,14 @@ The agent selects models in this order (highest priority first):
 
 1. **`--model` flag** - Direct model override
 2. **`--preset` flag** - Named preset (quick/standard/thorough)
-3. **`REVIEW_MODEL` env var** - Direct model from environment
-4. **`REVIEW_PRESET` env var** - Preset from environment
+3. **`AGENT_MODEL` env var** - Direct model from environment
+4. **`AGENT_PRESET` env var** - Preset from environment
 5. **Default preset** - Falls back to "standard"
+
+Model effort is selected separately: `--effort` takes precedence over
+`AGENT_EFFORT`. If neither is set, the provider uses its model default. The
+accepted effort values depend on the selected provider and model; `low`,
+`medium`, and `high` are common values.
 
 ## Customizing for Enterprise Plans
 
@@ -187,12 +196,12 @@ Useful for CI/CD or scripting:
 
 ```bash
 # Set default for all reviews in this session
-export REVIEW_PRESET=thorough
+export AGENT_PRESET=thorough
 python review_agent.py 997182
 python review_agent.py 997183
 
 # Override for specific review
-REVIEW_MODEL=claude-opus-5 python review_agent.py 997184
+AGENT_MODEL=claude-opus-5 python review_agent.py 997184
 ```
 
 ## Examples

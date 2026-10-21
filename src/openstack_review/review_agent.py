@@ -145,8 +145,11 @@ async def run_review(
     openai_price_input: float = None,
     openai_price_output: float = None,
     max_turns_override: int = None,
+    effort_override: str = None,
 ) -> None:
     os.makedirs(output_dir, exist_ok=True)
+    if effort_override is None:
+        effort_override = os.getenv("AGENT_EFFORT") or None
 
     # Get provider + model configuration based on preset or override
     model_config = get_model_config(
@@ -161,6 +164,8 @@ async def run_review(
     print(f"Using model: {model_config['model']} (from {model_config['source']})")
     max_turns_source = "--max-turns" if max_turns_override is not None else "config"
     print(f"Max turns: {model_config['max_turns']} (from {max_turns_source})")
+    if effort_override:
+        print(f"Model effort: {effort_override}")
 
     # Note (claude provider): Vertex AI is auto-detected from environment
     # variables (CLAUDE_CODE_USE_VERTEX, ANTHROPIC_VERTEX_PROJECT_ID,
@@ -189,6 +194,7 @@ async def run_review(
         result = await review_provider.run_review(
             model=model_config["model"],
             max_turns=model_config["max_turns"],
+            effort=effort_override,
             system_prompt=system_prompt,
             prompt=prompt,
             work_dir=work_dir,
@@ -223,7 +229,7 @@ def main() -> None:
         "--provider",
         choices=["claude", "openai"],
         help="AI provider to use (claude/openai). "
-        "Override with REVIEW_PROVIDER environment variable. Default: claude.",
+        "Override with AGENT_PROVIDER environment variable. Default: claude.",
     )
     parser.add_argument(
         "--openai-base-url",
@@ -235,13 +241,18 @@ def main() -> None:
         "--preset",
         choices=["quick", "standard", "thorough"],
         help="Review preset (quick/standard/thorough). See presets below. "
-        "Override with REVIEW_PRESET environment variable.",
+        "Override with AGENT_PRESET environment variable.",
     )
     parser.add_argument(
         "--model",
         help="Specific model to use (overrides preset). "
         "Examples: claude-sonnet-5, claude-opus-5, gpt-5, gpt-5-mini. "
-        "Override with REVIEW_MODEL environment variable.",
+        "Override with AGENT_MODEL environment variable.",
+    )
+    parser.add_argument(
+        "--effort",
+        help="Model reasoning effort (for example low, medium, high). "
+        "Override with AGENT_EFFORT environment variable.",
     )
     parser.add_argument(
         "--max-turns",
@@ -318,6 +329,7 @@ def main() -> None:
             openai_price_input=args.openai_price_input,
             openai_price_output=args.openai_price_output,
             max_turns_override=args.max_turns,
+            effort_override=args.effort,
         )
     )
 

@@ -131,13 +131,15 @@ export OPENAI_API_KEY=your-api-key
 python review_agent.py 970404 --provider openai
 python review_agent.py 970404 --provider openai --preset thorough
 python review_agent.py 970404 --provider openai --model gpt-5
+python review_agent.py 970404 --provider openai --effort high
 
 # OpenAI against a custom endpoint (Azure / OpenAI-compatible / proxy / self-hosted)
 python review_agent.py 970404 --provider openai --openai-base-url https://your-endpoint/v1
 ```
 
-Equivalent environment variables: `REVIEW_PROVIDER=openai` and
-`OPENAI_BASE_URL=https://your-endpoint/v1`. Install only the provider you need:
+Equivalent environment variables: `AGENT_PROVIDER=openai`,
+`AGENT_EFFORT=high`, and `OPENAI_BASE_URL=https://your-endpoint/v1`.
+Install only the provider you need:
 `pip install openstack-review[openai]` or `pip install openstack-review[claude]`.
 
 See [MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md) for detailed model configuration options, especially for enterprise plans with different model availability.

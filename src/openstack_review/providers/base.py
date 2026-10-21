@@ -52,6 +52,7 @@ class ReviewProvider(ABC):
         *,
         model: str,
         max_turns: int,
+        effort: str = None,
         system_prompt: str,
         prompt: str,
         work_dir: str,

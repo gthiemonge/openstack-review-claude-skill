@@ -272,8 +272,10 @@ gcloud alpha billing accounts describe YOUR_BILLING_ACCOUNT_ID
 | `CLAUDE_CODE_USE_VERTEX` | Enable Vertex AI mode | `1` |
 | `ANTHROPIC_VERTEX_PROJECT_ID` | Your Google Cloud project ID | `my-openstack-project` |
 | `CLOUD_ML_REGION` | Vertex AI region | `global` |
-| `REVIEW_PRESET` | Default review preset | `thorough` |
-| `REVIEW_MODEL` | Override model | `claude-3-opus@20240229` |
+| `AGENT_PROVIDER` | Select the model provider | `claude` |
+| `AGENT_PRESET` | Default review preset | `thorough` |
+| `AGENT_MODEL` | Override model | `claude-3-opus@20240229` |
+| `AGENT_EFFORT` | Model reasoning effort | `high` |
 
 ## Comparing with Anthropic API
 

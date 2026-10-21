@@ -37,6 +37,7 @@ class OpenAIProvider(ReviewProvider):
         *,
         model: str,
         max_turns: int,
+        effort: str = None,
         system_prompt: str,
         prompt: str,
         work_dir: str,
@@ -96,12 +97,15 @@ class OpenAIProvider(ReviewProvider):
         for turn in range(max_turns):
             # Use with_raw_response so we can read response headers (gateways
             # like litellm return the per-request cost there).
-            raw = client.responses.with_raw_response.create(
-                model=model,
-                instructions=system_prompt,
-                input=input_items,
-                tools=_tools.OPENAI_TOOL_SCHEMAS,
-            )
+            request = {
+                "model": model,
+                "instructions": system_prompt,
+                "input": input_items,
+                "tools": _tools.OPENAI_TOOL_SCHEMAS,
+            }
+            if effort is not None:
+                request["reasoning"] = {"effort": effort}
+            raw = client.responses.with_raw_response.create(**request)
             response = raw.parse()
 
             turn_cost = _header_cost(raw)

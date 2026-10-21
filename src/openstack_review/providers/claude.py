@@ -22,6 +22,7 @@ class ClaudeProvider(ReviewProvider):
         *,
         model: str,
         max_turns: int,
+        effort: str = None,
         system_prompt: str,
         prompt: str,
         work_dir: str,
@@ -43,7 +44,7 @@ class ClaudeProvider(ReviewProvider):
                 "provider. Install it with: pip install claude-agent-sdk"
             ) from e
 
-        options = ClaudeAgentOptions(
+        option_values = dict(
             model=model,
             allowed_tools=["Read", "Bash", "Grep", "Glob", "WebFetch", "Write"],
             permission_mode="acceptEdits",
@@ -53,6 +54,9 @@ class ClaudeProvider(ReviewProvider):
             system_prompt=system_prompt,
             max_turns=max_turns,
         )
+        if effort is not None:
+            option_values["effort"] = effort
+        options = ClaudeAgentOptions(**option_values)
 
         result = ReviewResult(success=False, provider=self.name)
 

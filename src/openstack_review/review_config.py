@@ -10,7 +10,7 @@ import os
 from typing import Any, Dict
 
 # Default provider when none is specified.
-# Override with the REVIEW_PROVIDER environment variable or --provider flag.
+# Override with the AGENT_PROVIDER environment variable or --provider flag.
 DEFAULT_PROVIDER = "claude"
 
 # Model presets per provider - CUSTOMIZE THESE for your plan/account.
@@ -77,14 +77,15 @@ def get_openai_pricing(model: str) -> dict:
 
 # Environment variable overrides allow per-review customization without editing
 # this file:
-#   REVIEW_PROVIDER=openai python review_agent.py 997182
-#   REVIEW_PRESET=thorough python review_agent.py 997182
-#   REVIEW_MODEL=gpt-5 python review_agent.py 997182
+#   AGENT_PROVIDER=openai python review_agent.py 997182
+#   AGENT_PRESET=thorough python review_agent.py 997182
+#   AGENT_MODEL=gpt-5 python review_agent.py 997182
+#   AGENT_EFFORT=high python review_agent.py 997182
 
 
 def _resolve_provider(provider: str = None) -> str:
     """Determine the active provider (flag > env > default)."""
-    name = (provider or os.getenv("REVIEW_PROVIDER") or DEFAULT_PROVIDER).lower()
+    name = (provider or os.getenv("AGENT_PROVIDER") or DEFAULT_PROVIDER).lower()
     if name not in PRESETS:
         available = ", ".join(PRESETS.keys())
         raise ValueError(f"Unknown provider '{name}'. Available: {available}")
@@ -97,13 +98,13 @@ def get_model_config(
     """
     Get model configuration for a review.
 
-    Provider resolution: --provider flag > REVIEW_PROVIDER env > DEFAULT_PROVIDER.
+    Provider resolution: --provider flag > AGENT_PROVIDER env > DEFAULT_PROVIDER.
 
     Within the provider, model resolution priority:
     1. Direct model override (--model flag)
-    2. REVIEW_MODEL environment variable
+    2. AGENT_MODEL environment variable
     3. Preset from argument (--preset flag)
-    4. REVIEW_PRESET environment variable
+    4. AGENT_PRESET environment variable
     5. Default preset
 
     Returns:
@@ -125,17 +126,17 @@ def get_model_config(
         }
 
     # Direct model env var.
-    env_model = os.getenv("REVIEW_MODEL")
+    env_model = os.getenv("AGENT_MODEL")
     if env_model:
         return {
             "provider": provider_name,
             "model": env_model,
             "max_turns": 50,
-            "source": f"REVIEW_MODEL={env_model}",
+            "source": f"AGENT_MODEL={env_model}",
         }
 
     # Determine which preset to use.
-    preset_name = preset or os.getenv("REVIEW_PRESET") or DEFAULT_PRESET
+    preset_name = preset or os.getenv("AGENT_PRESET") or DEFAULT_PRESET
 
     if preset_name not in provider_presets:
         available = ", ".join(provider_presets.keys())
